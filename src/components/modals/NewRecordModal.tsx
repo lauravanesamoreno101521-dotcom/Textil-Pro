@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GarmentRateGroup, InventoryItem, Operative } from '../../types';
+import { CompanyName, GarmentRateGroup, InventoryItem, Operative } from '../../types';
 import { formatCOP } from '../../utils/format';
 
 interface NewRecordModalProps {
@@ -8,9 +8,9 @@ interface NewRecordModalProps {
   operatives: Operative[];
   inventory: InventoryItem[];
   taskRates: GarmentRateGroup[];
-  onAddOrder: (order: { client: string; items: string; quantity: number; totalValue: number }) => void;
+  onAddOrder: (order: { client: string; empresa: CompanyName; items: string; quantity: number; totalValue: number }) => void;
   onAddProduction: (entry: { operativeId: string; machineId: string; garmentType: string; taskName: string; batchQty: number; ratePerPiece: number }) => void;
-  onAddStock: (stock: { name: string; category: 'Hilos' | 'Agujas' | 'Repuestos' | 'Telas' | 'Accesorios'; quantity: number; unit: string; costPerUnit: number; reorderPoint: number }) => void;
+  onAddStock: (stock: { name: string; category: 'Hilos' | 'Agujas' | 'Repuestos'; quantity: number; unit: string; costPerUnit: number; reorderPoint: number }) => void;
 }
 
 export const NewRecordModal: React.FC<NewRecordModalProps> = ({
@@ -27,6 +27,7 @@ export const NewRecordModal: React.FC<NewRecordModalProps> = ({
 
   // Order state
   const [client, setClient] = useState('');
+  const [orderEmpresa, setOrderEmpresa] = useState<CompanyName>('COOLKIDS');
   const [orderItems, setOrderItems] = useState('50 Camisetas Cuello V');
   const [orderQty, setOrderQty] = useState(50);
   const [orderTotal, setOrderTotal] = useState(2500);
@@ -50,7 +51,7 @@ export const NewRecordModal: React.FC<NewRecordModalProps> = ({
 
   // Stock state
   const [stockName, setStockName] = useState('');
-  const [stockCategory, setStockCategory] = useState<'Hilos' | 'Agujas' | 'Repuestos' | 'Telas' | 'Accesorios'>('Hilos');
+  const [stockCategory, setStockCategory] = useState<'Hilos' | 'Agujas' | 'Repuestos'>('Hilos');
   const [stockQty, setStockQty] = useState(100);
   const [stockUnit, setStockUnit] = useState('Conos');
   const [stockCost, setStockCost] = useState(3.50);
@@ -63,6 +64,7 @@ export const NewRecordModal: React.FC<NewRecordModalProps> = ({
     if (!client.trim()) return;
     onAddOrder({
       client,
+      empresa: orderEmpresa,
       items: orderItems,
       quantity: orderQty,
       totalValue: orderTotal
@@ -102,21 +104,21 @@ export const NewRecordModal: React.FC<NewRecordModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="bg-white border border-[#cac4d4] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Modal Header */}
-        <div className="bg-[#f0f3ff] p-4 border-b border-[#cac4d4] flex items-center justify-between">
+        <div className="bg-[#fdf1f6] p-4 border-b border-[#cac4d4] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#674bb5]">add_circle</span>
+            <span className="material-symbols-outlined text-[#ca2164]">add_circle</span>
             <h3 className="font-bold text-base text-[#151c27]">Agregar Nuevo Registro</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-[#7a7583] hover:text-[#151c27] hover:bg-[#e2e8f8] transition-colors cursor-pointer"
+            className="p-1 rounded-lg text-[#7a7583] hover:text-[#151c27] hover:bg-[#fbe0ea] transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-[#cac4d4] bg-[#f9f9ff] px-4 pt-2">
+        <div className="flex border-b border-[#cac4d4] bg-[#fefafb] px-4 pt-2">
           <button
             onClick={() => setTab('order')}
             className={`px-4 py-2 text-xs font-bold border-b-2 transition-all cursor-pointer ${
@@ -166,6 +168,18 @@ export const NewRecordModal: React.FC<NewRecordModalProps> = ({
               </div>
 
               <div>
+                <label className="text-xs font-bold text-[#494552] block mb-1">Empresa Cliente</label>
+                <select
+                  value={orderEmpresa}
+                  onChange={(e) => setOrderEmpresa(e.target.value as CompanyName)}
+                  className="w-full p-2.5 rounded-lg border border-[#cac4d4] text-xs text-[#151c27] focus:border-[#a43073] outline-none cursor-pointer"
+                >
+                  <option value="COOLKIDS">Coolkids</option>
+                  <option value="IMPERIUM">Imperium</option>
+                </select>
+              </div>
+
+              <div>
                 <label className="text-xs font-bold text-[#494552] block mb-1">Prendas / Descripción</label>
                 <input
                   type="text"
@@ -188,7 +202,7 @@ export const NewRecordModal: React.FC<NewRecordModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-[#494552] block mb-1">Valor Total ($ USD)</label>
+                  <label className="text-xs font-bold text-[#494552] block mb-1">Valor Total (COP)</label>
                   <input
                     type="number"
                     min="0"
@@ -200,9 +214,13 @@ export const NewRecordModal: React.FC<NewRecordModalProps> = ({
                 </div>
               </div>
 
+              <p className="text-[11px] text-[#7a7583] -mt-1">
+                Esto crea el pedido en el Panel y, a la vez, su factura correspondiente (con seguimiento de entrega, conciliación de cantidades y cobro al cliente) en Facturas y Contabilidad.
+              </p>
+
               <button
                 type="submit"
-                className="w-full mt-4 bg-[#674bb5] hover:bg-[#4f319c] text-white font-bold py-2.5 rounded-lg text-xs shadow-sm transition-all cursor-pointer"
+                className="w-full mt-4 bg-[#ca2164] hover:bg-[#a3144d] text-white font-bold py-2.5 rounded-lg text-xs shadow-sm transition-all cursor-pointer"
               >
                 Crear Pedido en Taller
               </button>
@@ -262,7 +280,7 @@ export const NewRecordModal: React.FC<NewRecordModalProps> = ({
                     value={prodTaskId}
                     onChange={(e) => setProdTaskId(e.target.value)}
                     disabled={!prodGroup || prodGroup.tasks.length === 0}
-                    className="w-full p-2.5 rounded-lg border border-[#cac4d4] text-xs text-[#151c27] focus:border-[#a43073] outline-none cursor-pointer disabled:bg-[#f0f3ff] disabled:text-[#7a7583]"
+                    className="w-full p-2.5 rounded-lg border border-[#cac4d4] text-xs text-[#151c27] focus:border-[#a43073] outline-none cursor-pointer disabled:bg-[#fdf1f6] disabled:text-[#7a7583]"
                   >
                     {prodGroup && prodGroup.tasks.length > 0 ? (
                       prodGroup.tasks.map((task) => (
@@ -287,15 +305,15 @@ export const NewRecordModal: React.FC<NewRecordModalProps> = ({
                   </div>
                   <div>
                     <label className="text-xs font-bold text-[#494552] block mb-1">Tarifa / Pieza</label>
-                    <div className="w-full p-2.5 rounded-lg border border-[#cac4d4] bg-[#f0f3ff] font-mono text-xs text-[#494552]">
+                    <div className="w-full p-2.5 rounded-lg border border-[#cac4d4] bg-[#fdf1f6] font-mono text-xs text-[#494552]">
                       {formatCOP(prodRate, 1)}
                     </div>
                   </div>
                 </div>
 
-                <div className="p-2.5 bg-[#ede9fe]/50 rounded-lg border border-[#a78bfa]/40 flex justify-between items-center text-xs">
-                  <span className="text-[#3c1989] font-medium">Pago estimado:</span>
-                  <span className="font-mono font-bold text-[#674bb5]">{formatCOP(prodQty * prodRate)}</span>
+                <div className="p-2.5 bg-[#fdeaf2]/50 rounded-lg border border-[#f797bd]/40 flex justify-between items-center text-xs">
+                  <span className="text-[#820d3c] font-medium">Pago estimado:</span>
+                  <span className="font-mono font-bold text-[#ca2164]">{formatCOP(prodQty * prodRate)}</span>
                 </div>
 
                 <button
@@ -334,8 +352,6 @@ export const NewRecordModal: React.FC<NewRecordModalProps> = ({
                     <option value="Hilos">Hilos</option>
                     <option value="Agujas">Agujas</option>
                     <option value="Repuestos">Repuestos</option>
-                    <option value="Telas">Telas</option>
-                    <option value="Accesorios">Accesorios</option>
                   </select>
                 </div>
                 <div>

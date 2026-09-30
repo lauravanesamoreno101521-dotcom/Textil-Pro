@@ -84,7 +84,7 @@ export const IncomeModal: React.FC<IncomeModalProps> = ({
           </div>
 
           <div>
-            <label className="text-xs font-bold text-[#494552] block mb-1">Monto Cobrado ($ USD)</label>
+            <label className="text-xs font-bold text-[#494552] block mb-1">Monto Cobrado (COP)</label>
             <input
               type="number"
               step="10"

@@ -7,7 +7,7 @@ interface PurchaseStockModalProps {
   inventory: InventoryItem[];
   onAddStock: (stock: {
     name: string;
-    category: 'Hilos' | 'Agujas' | 'Repuestos' | 'Telas' | 'Accesorios';
+    category: 'Hilos' | 'Agujas' | 'Repuestos';
     quantity: number;
     unit: string;
     costPerUnit: number;
@@ -23,7 +23,7 @@ export const PurchaseStockModal: React.FC<PurchaseStockModalProps> = ({
 }) => {
   const [selectedExistingId, setSelectedExistingId] = useState<string>('new');
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<'Hilos' | 'Agujas' | 'Repuestos' | 'Telas' | 'Accesorios'>('Hilos');
+  const [category, setCategory] = useState<'Hilos' | 'Agujas' | 'Repuestos'>('Hilos');
   const [quantity, setQuantity] = useState<number>(50);
   const [unit, setUnit] = useState<string>('Conos');
   const [costPerUnit, setCostPerUnit] = useState<number>(4.00);
@@ -77,7 +77,7 @@ export const PurchaseStockModal: React.FC<PurchaseStockModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-[#7a7583] hover:text-[#151c27] hover:bg-[#e2e8f8] transition-colors cursor-pointer"
+            className="p-1 rounded-lg text-[#7a7583] hover:text-[#151c27] hover:bg-[#fbe0ea] transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
@@ -128,8 +128,6 @@ export const PurchaseStockModal: React.FC<PurchaseStockModalProps> = ({
                 <option value="Hilos">Hilos</option>
                 <option value="Agujas">Agujas</option>
                 <option value="Repuestos">Repuestos</option>
-                <option value="Telas">Telas</option>
-                <option value="Accesorios">Accesorios</option>
               </select>
             </div>
             <div>

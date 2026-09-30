@@ -1,23 +1,35 @@
-import React, { useState } from 'react';
-import { InventoryItem } from '../../types';
+import React, { useMemo, useState } from 'react';
+import { GarmentRateGroup, InventoryItem, ThreadConsumptionLog } from '../../types';
+import { getEffectiveGramsPerPiece, getTasksLinkedToHilo } from '../../utils/threadConsumption';
+import { formatDateEs } from '../../utils/deliveryDeadline';
+import { ThreadConsumptionLogModal } from '../modals/ThreadConsumptionLogModal';
 
 interface InventoryViewProps {
   inventory: InventoryItem[];
+  taskRates: GarmentRateGroup[];
+  threadLogs: ThreadConsumptionLog[];
   searchQuery: string;
   onOpenPurchaseModal: () => void;
   onEditItem: (item: InventoryItem) => void;
+  onAddThreadConsumptionLog: (log: Omit<ThreadConsumptionLog, 'id'>) => void;
 }
 
 export const InventoryView: React.FC<InventoryViewProps> = ({
   inventory,
+  taskRates,
+  threadLogs,
   searchQuery,
   onOpenPurchaseModal,
-  onEditItem
+  onEditItem,
+  onAddThreadConsumptionLog
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [statusFilter, setStatusFilter] = useState<string>('Todos los estados');
+  const [logModalHilo, setLogModalHilo] = useState<InventoryItem | null>(null);
 
-  const categories = ['Todos', 'Hilos', 'Agujas', 'Repuestos', 'Telas', 'Accesorios'];
+  const hiloItems = useMemo(() => inventory.filter((i) => i.category === 'Hilos'), [inventory]);
+
+  const categories = ['Todos', 'Hilos', 'Agujas', 'Repuestos'];
 
   // Identify critical items below reorder point
   const criticalItems = inventory.filter(i => i.status === 'Crítico');
@@ -45,7 +57,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       {/* Page Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-[#674bb5] tracking-tight">Inventario de Insumos</h1>
+          <h1 className="text-3xl font-bold text-[#ca2164] tracking-tight">Inventario de Insumos</h1>
           <p className="text-sm text-[#494552] mt-1">
             Gestiona el stock actual, alertas y reabastecimiento.
           </p>
@@ -89,7 +101,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors cursor-pointer ${
                   isActive
                     ? 'bg-[#a43073] text-white font-bold shadow-xs'
-                    : 'border border-[#cac4d4] text-[#151c27] hover:bg-[#f0f3ff]'
+                    : 'border border-[#cac4d4] text-[#151c27] hover:bg-[#fdf1f6]'
                 }`}
               >
                 {cat}
@@ -117,10 +129,10 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       {/* Data Table Panel */}
       <div className="bg-white border border-[#cac4d4] rounded-xl overflow-hidden shadow-[0px_4px_12px_rgba(103,75,181,0.04)]">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[760px]">
+          <table className="w-full text-left border-collapse min-w-[900px]">
             <thead>
-              <tr className="bg-[#f0f3ff] border-b border-[#cac4d4]">
-                <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-[#494552] w-1/3">
+              <tr className="bg-[#fdf1f6] border-b border-[#cac4d4]">
+                <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-[#494552] w-1/4">
                   Ítem / Descripción
                 </th>
                 <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-[#494552]">
@@ -135,6 +147,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-[#494552] text-right">
                   Pto. Reorden
                 </th>
+                <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-[#494552] w-40">
+                  Nivel de Stock
+                </th>
                 <th className="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-[#494552] text-center">
                   Estado
                 </th>
@@ -146,7 +161,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             <tbody className="text-xs divide-y divide-[#cac4d4]/40">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-10 text-center text-[#7a7583]">
+                  <td colSpan={8} className="py-10 text-center text-[#7a7583]">
                     No se encontraron insumos con los filtros seleccionados.
                   </td>
                 </tr>
@@ -158,12 +173,12 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   return (
                     <tr
                       key={item.id}
-                      className={`hover:bg-[#f0f3ff] transition-colors h-12 ${
+                      className={`hover:bg-[#fdf1f6] transition-colors h-12 ${
                         isCritical
                           ? 'bg-[#FFE4E6]/25'
                           : isLow
                           ? 'bg-[#FEF9C3]/20'
-                          : ''
+                          : 'bg-[#DCFCE7]/20'
                       }`}
                     >
                       <td className="py-2.5 px-4 font-medium text-[#151c27]">
@@ -179,7 +194,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                             ? 'text-[#ba1a1a] font-bold text-sm'
                             : isLow
                             ? 'text-[#a16207] font-bold text-sm'
-                            : 'text-[#151c27]'
+                            : 'text-[#16A34A] font-bold text-sm'
                         }`}
                       >
                         {item.currentStock}
@@ -187,6 +202,28 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       <td className="py-2.5 px-4 text-[#494552] text-right">{item.unit}</td>
                       <td className="py-2.5 px-4 text-right text-[#494552] font-mono">
                         {item.reorderPoint}
+                      </td>
+                      <td className="py-2.5 px-4">
+                        {(() => {
+                          // Referencia visual de "stock saludable": el doble del punto de
+                          // reorden. La marca vertical señala dónde está ese punto de reorden.
+                          const target = item.reorderPoint > 0 ? item.reorderPoint * 2 : item.currentStock || 1;
+                          const fillPct = target > 0 ? Math.min((item.currentStock / target) * 100, 100) : 0;
+                          const thresholdPct = target > 0 ? Math.min((item.reorderPoint / target) * 100, 100) : 50;
+                          const barColor = isCritical ? 'bg-[#E11D48]' : isLow ? 'bg-[#A16207]' : 'bg-[#16A34A]';
+                          return (
+                            <div className="relative w-full h-2.5 bg-[#fdf1f6] rounded-full overflow-hidden" title={`${item.currentStock} de ${item.reorderPoint} (pto. reorden)`}>
+                              <div
+                                style={{ width: `${Math.max(fillPct, 3)}%` }}
+                                className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+                              />
+                              <div
+                                style={{ left: `${thresholdPct}%` }}
+                                className="absolute top-0 h-full w-[2px] bg-[#494552]/60"
+                              />
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="py-2.5 px-4 text-center">
                         {isCritical ? (
@@ -200,8 +237,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                             Bajo
                           </span>
                         ) : (
-                          <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full bg-[#E0F2FE] text-[#0284C7] text-[11px] font-bold gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-[#0284C7]" />
+                          <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full bg-[#DCFCE7] text-[#16A34A] text-[11px] font-bold gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-[#16A34A]" />
                             OK
                           </span>
                         )}
@@ -223,6 +260,124 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Consumo de Hilo por Labor (estimado, ver utils/threadConsumption.ts) */}
+      {hiloItems.length > 0 && (
+        <div className="bg-white border border-[#cac4d4] rounded-xl p-5 shadow-[0px_4px_12px_rgba(103,75,181,0.04)]">
+          <div className="border-b border-[#cac4d4] pb-3 mb-4">
+            <h2 className="text-lg font-bold text-[#ca2164]">Consumo de Hilo por Labor</h2>
+            <p className="text-xs text-[#494552] mt-0.5">
+              Estimación por labor para dar alerta de stock — el hilo que sobra de una tarea vuelve a
+              bodega, así que esto nunca descuenta el inventario automáticamente. Enlaza cada labor con su
+              hilo desde Producción → Tarifas por Labor.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {hiloItems.map((hilo) => {
+              const links = getTasksLinkedToHilo(taskRates, hilo.id);
+              const logsForHilo = threadLogs
+                .filter((l) => l.hiloItemId === hilo.id)
+                .sort((a, b) => (a.dateISO < b.dateISO ? 1 : -1))
+                .slice(0, 4);
+
+              return (
+                <div key={hilo.id} className="border border-[#cac4d4] rounded-xl overflow-hidden flex flex-col">
+                  <div className="bg-[#fdf1f6] px-4 py-2.5 flex items-center justify-between border-b border-[#cac4d4]">
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-[#151c27] truncate">{hilo.name}</h3>
+                      <p className="text-[10px] text-[#7a7583]">
+                        Stock actual: {hilo.currentStock.toLocaleString('es-CO')} {hilo.unit}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setLogModalHilo(hilo)}
+                      className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 bg-[#ca2164] text-white rounded-lg font-bold text-[10px] hover:bg-[#a3144d] transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">add</span>
+                      Consumo Real
+                    </button>
+                  </div>
+
+                  <div className="divide-y divide-[#cac4d4]/50">
+                    {links.length === 0 ? (
+                      <p className="text-xs text-[#7a7583] text-center py-4 px-3">
+                        Ninguna labor enlazada con este hilo todavía.
+                      </p>
+                    ) : (
+                      links.map((link) => {
+                        const effective = getEffectiveGramsPerPiece(link.task, link.garmentType, threadLogs);
+                        return (
+                          <div
+                            key={`${link.garmentType}-${link.taskName}`}
+                            className="flex items-center justify-between px-4 py-2 text-xs"
+                          >
+                            <span className="font-medium text-[#151c27]">
+                              {link.garmentType} — {link.taskName}
+                            </span>
+                            {effective.value !== null ? (
+                              <span className="flex items-center gap-1.5 font-mono text-[#494552]">
+                                {effective.value.toLocaleString('es-CO', { maximumFractionDigits: 2 })} g/pza
+                                <span
+                                  className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${
+                                    effective.source === 'calculado'
+                                      ? 'bg-[#DCFCE7] text-[#16A34A]'
+                                      : 'bg-[#fdf1f6] text-[#7a7583]'
+                                  }`}
+                                  title={
+                                    effective.source === 'calculado'
+                                      ? `Promedio de ${effective.sampleSize} registros reales`
+                                      : 'Valor manual ingresado por el jefe'
+                                  }
+                                >
+                                  {effective.source === 'calculado' ? 'calculado' : 'manual'}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-[#a16207]">Sin gramos/pieza definidos</span>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {logsForHilo.length > 0 && (
+                    <div className="border-t border-[#cac4d4]/60 px-4 py-2.5 bg-[#fefafb]">
+                      <p className="text-[10px] font-bold text-[#494552] uppercase tracking-wide mb-1.5">
+                        Últimos consumos registrados
+                      </p>
+                      <div className="space-y-1">
+                        {logsForHilo.map((log) => (
+                          <div key={log.id} className="flex items-center justify-between text-[10px] text-[#7a7583]">
+                            <span className="truncate">
+                              {formatDateEs(log.dateISO)} · {log.garmentType} — {log.taskName}
+                            </span>
+                            <span className="font-mono shrink-0 ml-2">
+                              {log.gramsUsed}g / {log.piecesProduced}pz
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <ThreadConsumptionLogModal
+        isOpen={!!logModalHilo}
+        onClose={() => setLogModalHilo(null)}
+        hiloItem={logModalHilo}
+        links={logModalHilo ? getTasksLinkedToHilo(taskRates, logModalHilo.id) : []}
+        onSave={(data) => {
+          if (!logModalHilo) return;
+          onAddThreadConsumptionLog({ hiloItemId: logModalHilo.id, ...data });
+        }}
+      />
     </div>
   );
 };

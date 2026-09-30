@@ -1,5 +1,5 @@
 import React from 'react';
-import { GarmentRateGroup } from '../types';
+import { GarmentRateGroup, InventoryItem } from '../types';
 import { formatCOP } from '../utils/format';
 
 interface TaskRatesPanelProps {
@@ -7,13 +7,16 @@ interface TaskRatesPanelProps {
   searchQuery: string;
   onEditGroup: (group: GarmentRateGroup) => void;
   onAddGroup: () => void;
+  // Solo para mostrar el nombre del hilo asociado a cada labor, si aplica.
+  hiloItems: InventoryItem[];
 }
 
 export const TaskRatesPanel: React.FC<TaskRatesPanelProps> = ({
   taskRates,
   searchQuery,
   onEditGroup,
-  onAddGroup
+  onAddGroup,
+  hiloItems
 }) => {
   const filteredGroups = taskRates
     .map((group) => {
@@ -31,14 +34,14 @@ export const TaskRatesPanel: React.FC<TaskRatesPanelProps> = ({
     <div className="bg-white border border-[#cac4d4] rounded-xl p-5 shadow-[0px_4px_12px_rgba(103,75,181,0.04)]">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#cac4d4] pb-3 mb-4">
         <div>
-          <h2 className="text-lg font-bold text-[#674bb5]">Tarifas Estandarizadas por Labor</h2>
+          <h2 className="text-lg font-bold text-[#ca2164]">Tarifas Estandarizadas por Labor</h2>
           <p className="text-xs text-[#7a7583] mt-0.5">
             Precio en pesos colombianos (COP) por labor realizada. Base para calcular la nómina de cada operario.
           </p>
         </div>
         <button
           onClick={onAddGroup}
-          className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 bg-[#674bb5] text-white rounded-lg font-bold text-xs hover:bg-[#4f319c] transition-all shadow-sm cursor-pointer self-start sm:self-auto"
+          className="shrink-0 flex items-center gap-1.5 px-3.5 py-2 bg-[#ca2164] text-white rounded-lg font-bold text-xs hover:bg-[#a3144d] transition-all shadow-sm cursor-pointer self-start sm:self-auto"
         >
           <span className="material-symbols-outlined text-[16px]">add</span>
           Agregar Prenda
@@ -56,7 +59,7 @@ export const TaskRatesPanel: React.FC<TaskRatesPanelProps> = ({
               key={group.id}
               className="border border-[#cac4d4] rounded-xl overflow-hidden flex flex-col"
             >
-              <div className="bg-[#f0f3ff] px-4 py-2.5 flex items-center justify-between border-b border-[#cac4d4]">
+              <div className="bg-[#fdf1f6] px-4 py-2.5 flex items-center justify-between border-b border-[#cac4d4]">
                 <h3 className="text-sm font-bold text-[#151c27] uppercase tracking-wide">
                   {group.garmentName}
                 </h3>
@@ -65,7 +68,7 @@ export const TaskRatesPanel: React.FC<TaskRatesPanelProps> = ({
                     const original = taskRates.find((g) => g.id === group.id);
                     if (original) onEditGroup(original);
                   }}
-                  className="p-1 text-[#674bb5] hover:text-[#4f319c] hover:bg-white rounded-lg transition-colors cursor-pointer"
+                  className="p-1 text-[#ca2164] hover:text-[#a3144d] hover:bg-white rounded-lg transition-colors cursor-pointer"
                   title="Editar tarifas de esta prenda"
                 >
                   <span className="material-symbols-outlined text-[18px]">edit</span>
@@ -76,15 +79,29 @@ export const TaskRatesPanel: React.FC<TaskRatesPanelProps> = ({
                 {group.tasks.length === 0 ? (
                   <p className="text-xs text-[#7a7583] text-center py-4">Sin labores registradas.</p>
                 ) : (
-                  group.tasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className="flex items-center justify-between px-4 py-2 text-xs hover:bg-[#f9f9ff] transition-colors"
-                    >
-                      <span className="font-semibold text-[#151c27]">{task.name}</span>
-                      <span className="font-mono font-bold text-[#674bb5]">{formatCOP(task.price, 1)}</span>
-                    </div>
-                  ))
+                  group.tasks.map((task) => {
+                    const hilo = task.hiloItemId ? hiloItems.find((h) => h.id === task.hiloItemId) : null;
+                    return (
+                      <div
+                        key={task.id}
+                        className="flex items-center justify-between px-4 py-2 text-xs hover:bg-[#fefafb] transition-colors gap-2"
+                      >
+                        <div className="min-w-0">
+                          <span className="font-semibold text-[#151c27]">{task.name}</span>
+                          {hilo && (
+                            <span className="ml-2 inline-flex items-center gap-1 text-[10px] text-[#7a7583]">
+                              <span className="material-symbols-outlined text-[12px]">linear_scale</span>
+                              {hilo.name}
+                              {task.gramsPerPiece ? ` · ${task.gramsPerPiece} g/pza` : ''}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-mono font-bold text-[#ca2164] shrink-0">
+                          {formatCOP(task.price, 1)}
+                        </span>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

@@ -1,18 +1,29 @@
-import React, { useMemo, useState } from 'react';
-import { GarmentRateGroup, Operative, ProductionEntry } from '../../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { GarmentRateGroup, InventoryItem, Operative, PayrollPayment, ProductionEntry } from '../../types';
 import { TaskRatesPanel } from '../TaskRatesPanel';
 import { GarmentRateModal } from '../modals/GarmentRateModal';
 import { formatCOP } from '../../utils/format';
-import { PayrollPeriod, summarizePayrollByOperative, toISODate } from '../../utils/payroll';
+import {
+  PayrollPeriod,
+  PAYROLL_PERIOD_LABELS,
+  getPeriodStartISO,
+  summarizePayrollByOperative,
+  getUnpaidTotalsByOperative
+} from '../../utils/payroll';
+import { openPrintableReceipt, openWhatsAppReceipt } from '../../utils/receipt';
+
+const HISTORY_PAGE_SIZE = 20;
 
 interface ProductionViewProps {
   operatives: Operative[];
   productionHistory: ProductionEntry[];
   taskRates: GarmentRateGroup[];
-  onAddProductionEntry: (entry: Omit<ProductionEntry, 'id'>) => void;
+  payrollPayments: PayrollPayment[];
+  inventory: InventoryItem[];
   onSelectOperative: (operative: Operative) => void;
   onSaveGarmentRateGroup: (group: GarmentRateGroup) => void;
   onDeleteGarmentRateGroup: (groupId: string) => void;
+  onPayOperativePeriod: (operativeId: string, period: PayrollPeriod) => PayrollPayment | null;
   searchQuery: string;
 }
 
@@ -20,69 +31,54 @@ export const ProductionView: React.FC<ProductionViewProps> = ({
   operatives,
   productionHistory,
   taskRates,
-  onAddProductionEntry,
+  payrollPayments,
+  inventory,
   onSelectOperative,
   onSaveGarmentRateGroup,
   onDeleteGarmentRateGroup,
+  onPayOperativePeriod,
   searchQuery
 }) => {
-  const [selectedOperativeId, setSelectedOperativeId] = useState<string>('OP-001');
-  const [selectedGarmentGroupId, setSelectedGarmentGroupId] = useState<string>(taskRates[0]?.id || '');
-  const [selectedTaskId, setSelectedTaskId] = useState<string>(taskRates[0]?.tasks[0]?.id || '');
-  const [quantity, setQuantity] = useState<number>(25);
-  const [machineId, setMachineId] = useState<string>('MC-104');
+  const hiloItems = useMemo(() => inventory.filter((i) => i.category === 'Hilos'), [inventory]);
   const [showAllOperatives, setShowAllOperatives] = useState<boolean>(false);
-  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [ratesModalGroup, setRatesModalGroup] = useState<GarmentRateGroup | null>(null);
   const [payrollPeriod, setPayrollPeriod] = useState<PayrollPeriod>('day');
-
-  const selectedGroup = taskRates.find((g) => g.id === selectedGarmentGroupId) || null;
-  const selectedTask = selectedGroup?.tasks.find((t) => t.id === selectedTaskId) || null;
-  const currentRate = selectedTask?.price || 0;
-
-  const handleGarmentGroupChange = (groupId: string) => {
-    setSelectedGarmentGroupId(groupId);
-    const group = taskRates.find((g) => g.id === groupId);
-    setSelectedTaskId(group?.tasks[0]?.id || '');
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedOperativeId || quantity <= 0 || !selectedGroup || !selectedTask) return;
-
-    const op = operatives.find((o) => o.id === selectedOperativeId);
-    const operativeName = op ? op.name : 'Operario';
-
-    const now = new Date();
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-    onAddProductionEntry({
-      time: timeStr,
-      date: 'Hoy',
-      dateISO: toISODate(now),
-      machineId: machineId || 'MC-104',
-      operativeId: selectedOperativeId,
-      operativeName,
-      garmentType: selectedGroup.garmentName,
-      taskName: selectedTask.name,
-      batchQty: Number(quantity),
-      ratePerPiece: currentRate,
-      totalPay: Number(quantity) * currentRate
-    });
-
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 2500);
-  };
+  const [historyPeriod, setHistoryPeriod] = useState<PayrollPeriod | 'all'>('day');
+  const [historyPage, setHistoryPage] = useState<number>(1);
+  const [justPaid, setJustPaid] = useState<Record<string, PayrollPayment>>({});
 
   const payrollSummary = useMemo(
     () => summarizePayrollByOperative(productionHistory, payrollPeriod),
     [productionHistory, payrollPeriod]
   );
 
+  const unpaidTotals = useMemo(() => getUnpaidTotalsByOperative(productionHistory), [productionHistory]);
+  const unpaidByOperative = useMemo(() => {
+    const map = new Map<string, { totalQty: number; totalPay: number }>();
+    unpaidTotals.forEach((u) => map.set(u.operativeId, { totalQty: u.totalQty, totalPay: u.totalPay }));
+    return map;
+  }, [unpaidTotals]);
+
+  const handlePay = (operativeId: string) => {
+    const payment = onPayOperativePeriod(operativeId, payrollPeriod);
+    if (payment) {
+      setJustPaid((prev) => ({ ...prev, [operativeId]: payment }));
+    }
+  };
+
+  const handlePrintReceipt = (payment: PayrollPayment) => openPrintableReceipt(payment);
+  const handleSendWhatsApp = (payment: PayrollPayment) => {
+    const op = operatives.find((o) => o.id === payment.operativeId);
+    openWhatsAppReceipt(payment, op?.phone);
+  };
+
   const handleExportCSV = () => {
     const csvContent = [
-      ['ID Operario', 'Nombre', 'Piezas', 'Pago Pendiente'],
-      ...operatives.map(op => [op.id, op.name, op.piecesCompleted, formatCOP(op.totalEarnings)])
+      ['ID Operario', 'Nombre', 'Piezas Pendientes', 'Pago Pendiente'],
+      ...operatives.map((op) => {
+        const unpaid = unpaidByOperative.get(op.id);
+        return [op.id, op.name, unpaid?.totalQty || 0, formatCOP(unpaid?.totalPay || 0)];
+      })
     ]
       .map(row => row.join(','))
       .join('\n');
@@ -97,16 +93,33 @@ export const ProductionView: React.FC<ProductionViewProps> = ({
     document.body.removeChild(link);
   };
 
-  // Filter history by search query
-  const filteredHistory = productionHistory.filter(p => {
-    return (
-      searchQuery === '' ||
-      p.operativeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.machineId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.garmentType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.taskName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
+  // Filter history by período (día/semana/quincena/mes/todo) y por búsqueda
+  const filteredHistory = useMemo(() => {
+    const periodStartISO = historyPeriod === 'all' ? null : getPeriodStartISO(historyPeriod);
+    return productionHistory.filter((p) => {
+      const matchesPeriod = periodStartISO === null || p.dateISO >= periodStartISO;
+      const matchesSearch =
+        searchQuery === '' ||
+        p.operativeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.machineId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.garmentType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.taskName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.facturaRef || '').toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesPeriod && matchesSearch;
+    });
+  }, [productionHistory, historyPeriod, searchQuery]);
+
+  // El historial se va acumulando indefinidamente (nunca se borra); para que
+  // no quede eterno en pantalla se pagina de a 20 registros.
+  const historyPageCount = Math.max(1, Math.ceil(filteredHistory.length / HISTORY_PAGE_SIZE));
+  const paginatedHistory = filteredHistory.slice(
+    (historyPage - 1) * HISTORY_PAGE_SIZE,
+    historyPage * HISTORY_PAGE_SIZE
+  );
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historyPeriod, searchQuery]);
 
   const displayedOperatives = showAllOperatives ? operatives : operatives.slice(0, 4);
 
@@ -122,245 +135,127 @@ export const ProductionView: React.FC<ProductionViewProps> = ({
     <div className="max-w-7xl mx-auto space-y-6 pb-24 lg:pb-8">
       {/* Page Header */}
       <div className="mb-2">
-        <h1 className="text-3xl font-bold text-[#674bb5] tracking-tight">Producción y Nómina</h1>
+        <h1 className="text-3xl font-bold text-[#ca2164] tracking-tight">Producción y Nómina</h1>
         <p className="text-sm text-[#494552] mt-1">
           Registro diario de producción a destajo y resumen de pagos a operarios.
         </p>
       </div>
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        {/* Left Form: Record Production */}
-        <div className="xl:col-span-4 bg-white border border-[#cac4d4] rounded-xl p-5 shadow-[0px_4px_12px_rgba(103,75,181,0.04)] h-fit">
-          <h2 className="text-lg font-bold text-[#674bb5] border-b border-[#cac4d4] pb-3 mb-4 flex items-center justify-between">
-            <span>Registrar Producción</span>
-            <span className="text-xs font-normal text-[#494552] bg-[#f0f3ff] px-2 py-0.5 rounded">
-              A destajo
-            </span>
+      {/* Active Operatives Grid */}
+      <div className="bg-white border border-[#cac4d4] rounded-xl p-5 shadow-[0px_4px_12px_rgba(103,75,181,0.04)]">
+        <div className="flex justify-between items-center border-b border-[#cac4d4] pb-3 mb-4">
+          <h2 className="text-lg font-bold text-[#ca2164]">
+            Operarios ({operatives.length})
           </h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Operative Selector */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-[#494552]">Operario</label>
-              <select
-                value={selectedOperativeId}
-                onChange={(e) => setSelectedOperativeId(e.target.value)}
-                className="w-full p-2.5 rounded-lg border border-[#cac4d4] bg-white text-sm text-[#151c27] focus:border-[#a43073] focus:ring-2 focus:ring-[#a43073]/20 outline-none cursor-pointer"
-              >
-                {operatives.map((op) => (
-                  <option key={op.id} value={op.id}>
-                    {op.id} {op.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {taskRates.length === 0 ? (
-              <div className="p-3 bg-[#fdf2f8] border border-[#ffd8e7] rounded-lg text-xs text-[#a43073]">
-                Primero agrega al menos una prenda con sus labores estandarizadas más abajo, para poder registrar producción.
-              </div>
-            ) : (
-              <>
-                {/* Prenda Selector */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-[#494552]">Prenda</label>
-                  <select
-                    value={selectedGarmentGroupId}
-                    onChange={(e) => handleGarmentGroupChange(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-[#cac4d4] bg-white text-sm text-[#151c27] focus:border-[#a43073] focus:ring-2 focus:ring-[#a43073]/20 outline-none cursor-pointer"
-                  >
-                    {taskRates.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.garmentName || '(Sin nombre)'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Labor Selector */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-[#494552]">Labor Realizada</label>
-                  <select
-                    value={selectedTaskId}
-                    onChange={(e) => setSelectedTaskId(e.target.value)}
-                    disabled={!selectedGroup || selectedGroup.tasks.length === 0}
-                    className="w-full p-2.5 rounded-lg border border-[#cac4d4] bg-white text-sm text-[#151c27] focus:border-[#a43073] focus:ring-2 focus:ring-[#a43073]/20 outline-none cursor-pointer disabled:bg-[#f0f3ff] disabled:text-[#7a7583]"
-                  >
-                    {selectedGroup && selectedGroup.tasks.length > 0 ? (
-                      selectedGroup.tasks.map((task) => (
-                        <option key={task.id} value={task.id}>
-                          {task.name} — {formatCOP(task.price, 1)}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="">Esta prenda no tiene labores cargadas</option>
-                    )}
-                  </select>
-                </div>
-
-                {/* Quantity & Rate (auto) */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-[#494552]">Cantidad</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={quantity}
-                      onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-full p-2 rounded-lg border border-[#cac4d4] bg-white font-mono text-sm text-[#151c27] focus:border-[#a43073] focus:ring-2 focus:ring-[#a43073]/20 outline-none"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-[#494552]">Tarifa / Pieza</label>
-                    <div className="w-full p-2 rounded-lg border border-[#cac4d4] bg-[#f0f3ff] font-mono text-sm text-[#494552]">
-                      {formatCOP(currentRate, 1)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Machine ID */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-[#494552]">ID de Máquina</label>
-                  <select
-                    value={machineId}
-                    onChange={(e) => setMachineId(e.target.value)}
-                    className="w-full p-2 rounded-lg border border-[#cac4d4] bg-white font-mono text-xs text-[#151c27] focus:border-[#a43073] outline-none cursor-pointer"
-                  >
-                    <option value="MC-104">MC-104 (Plana Industrial)</option>
-                    <option value="MC-201">MC-201 (Remalladora 5 Hilos)</option>
-                    <option value="MC-305">MC-305 (Recubridora Collarín)</option>
-                    <option value="MC-402">MC-402 (Botonadora y Ojal)</option>
-                  </select>
-                </div>
-
-                {/* Live Total Calculation */}
-                <div className="p-3 bg-[#ede9fe]/50 rounded-lg border border-[#a78bfa]/40 flex justify-between items-center text-xs">
-                  <span className="text-[#3c1989] font-medium">Pago estimado por lote:</span>
-                  <span className="font-mono font-bold text-sm text-[#674bb5]">
-                    {formatCOP(quantity * currentRate)}
-                  </span>
-                </div>
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={!selectedGroup || !selectedTask}
-                  className={`w-full py-2.5 px-4 rounded-lg font-bold text-sm transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                    saveSuccess
-                      ? 'bg-[#006c4b] text-white'
-                      : 'bg-[#674bb5] hover:bg-[#4f319c] text-white active:scale-98'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[18px]">
-                    {saveSuccess ? 'check' : 'save'}
-                  </span>
-                  <span>{saveSuccess ? '¡Entrada Guardada!' : 'Guardar Registro'}</span>
-                </button>
-              </>
-            )}
-          </form>
+          <p className="text-[11px] text-[#7a7583] hidden sm:block">
+            Cada operario registra su propia producción desde su pantalla. Toca una tarjeta para ver su detalle o marcarlo como inactivo.
+          </p>
         </div>
 
-        {/* Right Section: Active Operatives & Pending Payroll */}
-        <div className="xl:col-span-8 flex flex-col gap-6">
-          {/* Active Operatives Grid */}
-          <div className="bg-white border border-[#cac4d4] rounded-xl p-5 shadow-[0px_4px_12px_rgba(103,75,181,0.04)]">
-            <div className="flex justify-between items-center border-b border-[#cac4d4] pb-3 mb-4">
-              <h2 className="text-lg font-bold text-[#674bb5]">
-                Operarios Activos ({operatives.length})
-              </h2>
-              <span className="text-xs font-semibold text-[#006c4b] bg-[#ecfdf5] px-2.5 py-1 rounded-full flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#34d399] animate-pulse" />
-                Turno A
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
-              {displayedOperatives.map((op) => (
-                <div
-                  key={op.id}
-                  onClick={() => onSelectOperative(op)}
-                  className="border border-[#cac4d4] rounded-xl p-3 flex flex-col items-center text-center hover:border-[#a43073] hover:bg-[#fdf2f8]/30 transition-all cursor-pointer relative group bg-white shadow-xs"
-                >
-                  <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-[#34D399] ring-2 ring-white" />
-                  <div className="w-13 h-13 rounded-full overflow-hidden mb-2 border border-[#cac4d4] group-hover:scale-105 transition-transform">
-                    <img
-                      src={op.avatar}
-                      alt={op.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <span className="text-xs font-bold text-[#151c27] truncate w-full group-hover:text-[#a43073]">
-                    {op.name}
-                  </span>
-                  <span className="font-mono text-[11px] text-[#494552]">{op.id}</span>
-                  <span className="text-[10px] text-[#006c4b] font-medium mt-1 bg-[#ecfdf5] px-2 py-0.5 rounded-full">
-                    {op.piecesCompleted} pzas
-                  </span>
-                </div>
-              ))}
-
-              {/* View All Button */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3.5">
+          {displayedOperatives.map((op) => (
+            <div
+              key={op.id}
+              onClick={() => onSelectOperative(op)}
+              className={`border rounded-xl p-3 flex flex-col items-center text-center transition-all cursor-pointer relative group shadow-xs ${
+                op.active
+                  ? 'border-[#cac4d4] bg-white hover:border-[#a43073] hover:bg-[#fdf2f8]/30'
+                  : 'border-[#cac4d4] bg-[#f3f3f5] grayscale opacity-70 hover:opacity-90'
+              }`}
+            >
               <div
-                onClick={() => setShowAllOperatives(!showAllOperatives)}
-                className="border border-[#cac4d4] border-dashed rounded-xl p-3 flex flex-col items-center justify-center text-center text-[#494552] hover:border-[#a43073] hover:text-[#a43073] hover:bg-[#fdf2f8]/20 transition-all cursor-pointer bg-[#f9f9ff]"
-              >
-                <span className="material-symbols-outlined text-[26px] mb-1">
-                  {showAllOperatives ? 'expand_less' : 'more_horiz'}
-                </span>
-                <span className="text-[11px] font-bold uppercase tracking-wider">
-                  {showAllOperatives ? 'COLAPSAR' : `VER TODOS (${operatives.length})`}
-                </span>
+                className={`absolute top-2 right-2 w-2.5 h-2.5 rounded-full ring-2 ring-white ${
+                  op.active ? 'bg-[#34D399]' : 'bg-[#9ca3af]'
+                }`}
+              />
+              <div className="w-13 h-13 rounded-full overflow-hidden mb-2 border border-[#cac4d4] group-hover:scale-105 transition-transform">
+                <img
+                  src={op.avatar}
+                  alt={op.name}
+                  className="w-full h-full object-cover"
+                />
               </div>
+              <span className="text-xs font-bold text-[#151c27] truncate w-full group-hover:text-[#a43073]">
+                {op.name}
+              </span>
+              <span className="font-mono text-[11px] text-[#494552]">{op.id}</span>
+              {op.active ? (
+                <span className="text-[10px] text-[#006c4b] font-medium mt-1 bg-[#ecfdf5] px-2 py-0.5 rounded-full">
+                  {op.piecesCompleted} pzas
+                </span>
+              ) : (
+                <span className="text-[10px] text-[#7a7583] font-bold mt-1 bg-[#e5e7eb] px-2 py-0.5 rounded-full">
+                  Inactivo
+                </span>
+              )}
             </div>
+          ))}
+
+          {/* View All Button */}
+          <div
+            onClick={() => setShowAllOperatives(!showAllOperatives)}
+            className="border border-[#cac4d4] border-dashed rounded-xl p-3 flex flex-col items-center justify-center text-center text-[#494552] hover:border-[#a43073] hover:text-[#a43073] hover:bg-[#fdf2f8]/20 transition-all cursor-pointer bg-[#fefafb]"
+          >
+            <span className="material-symbols-outlined text-[26px] mb-1">
+              {showAllOperatives ? 'expand_less' : 'more_horiz'}
+            </span>
+            <span className="text-[11px] font-bold uppercase tracking-wider">
+              {showAllOperatives ? 'COLAPSAR' : `VER TODOS (${operatives.length})`}
+            </span>
           </div>
+        </div>
+      </div>
 
-          {/* Pending Payroll Table */}
-          <div className="bg-white border border-[#cac4d4] rounded-xl p-5 shadow-[0px_4px_12px_rgba(103,75,181,0.04)]">
-            <div className="flex justify-between items-center border-b border-[#cac4d4] pb-3 mb-3">
-              <h2 className="text-lg font-bold text-[#674bb5]">Nómina Pendiente (Histórico Total)</h2>
-              <button
-                onClick={handleExportCSV}
-                className="text-xs font-bold text-[#a43073] hover:underline flex items-center gap-1 px-2.5 py-1 rounded hover:bg-[#ffd8e7] transition-colors cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px]">download</span>
-                Exportar CSV
-              </button>
-            </div>
+      {/* Pending Payroll Table */}
+      <div className="bg-white border border-[#cac4d4] rounded-xl p-5 shadow-[0px_4px_12px_rgba(103,75,181,0.04)]">
+        <div className="flex justify-between items-center border-b border-[#cac4d4] pb-3 mb-3">
+          <h2 className="text-lg font-bold text-[#ca2164]">Nómina Pendiente (Sin Pagar)</h2>
+          <button
+            onClick={handleExportCSV}
+            className="text-xs font-bold text-[#a43073] hover:underline flex items-center gap-1 px-2.5 py-1 rounded hover:bg-[#ffd8e7] transition-colors cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[16px]">download</span>
+            Exportar CSV
+          </button>
+        </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[450px]">
-                <thead>
-                  <tr className="border-b border-[#cac4d4] text-[11px] font-bold uppercase tracking-wider text-[#494552]">
-                    <th className="py-2 px-3">ID Operario</th>
-                    <th className="py-2 px-3">Nombre</th>
-                    <th className="py-2 px-3 text-right">Piezas</th>
-                    <th className="py-2 px-3 text-right">Pago Pendiente</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[450px]">
+            <thead>
+              <tr className="border-b border-[#cac4d4] text-[11px] font-bold uppercase tracking-wider text-[#494552]">
+                <th className="py-2 px-3">ID Operario</th>
+                <th className="py-2 px-3">Nombre</th>
+                <th className="py-2 px-3 text-right">Piezas</th>
+                <th className="py-2 px-3 text-right">Pago Pendiente</th>
+              </tr>
+            </thead>
+            <tbody className="text-xs divide-y divide-[#cac4d4]/40">
+              {operatives.map((op) => {
+                const unpaid = unpaidByOperative.get(op.id);
+                return (
+                  <tr
+                    key={op.id}
+                    onClick={() => onSelectOperative(op)}
+                    className={`transition-colors cursor-pointer h-10 ${
+                      op.active ? 'hover:bg-[#fdf1f6]' : 'text-[#9ca3af] hover:bg-[#f3f3f5]'
+                    }`}
+                  >
+                    <td className="py-2 px-3 font-mono font-medium text-[#ca2164]">{op.id}</td>
+                    <td className="py-2 px-3 font-medium text-[#151c27]">
+                      {op.name}
+                      {!op.active && <span className="ml-1.5 text-[10px] font-bold text-[#9ca3af]">(Inactivo)</span>}
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono text-[#494552]">
+                      {unpaid?.totalQty || 0}
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono font-bold text-[#ca2164]">
+                      {formatCOP(unpaid?.totalPay || 0)}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="text-xs divide-y divide-[#cac4d4]/40">
-                  {operatives.map((op) => (
-                    <tr
-                      key={op.id}
-                      onClick={() => onSelectOperative(op)}
-                      className="hover:bg-[#f0f3ff] transition-colors cursor-pointer h-10"
-                    >
-                      <td className="py-2 px-3 font-mono font-medium text-[#674bb5]">{op.id}</td>
-                      <td className="py-2 px-3 font-medium text-[#151c27]">{op.name}</td>
-                      <td className="py-2 px-3 text-right font-mono text-[#494552]">
-                        {op.piecesCompleted}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono font-bold text-[#674bb5]">
-                        {formatCOP(op.totalEarnings)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -368,15 +263,16 @@ export const ProductionView: React.FC<ProductionViewProps> = ({
       <div className="bg-white border border-[#cac4d4] rounded-xl p-5 shadow-[0px_4px_12px_rgba(103,75,181,0.04)]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#cac4d4] pb-3 mb-4">
           <div>
-            <h2 className="text-lg font-bold text-[#674bb5]">Nómina Automática</h2>
+            <h2 className="text-lg font-bold text-[#ca2164]">Nómina Automática</h2>
             <p className="text-xs text-[#494552] mt-0.5">
               Calculada a partir de los registros de producción guardados con prenda y labor.
             </p>
           </div>
-          <div className="flex items-center gap-1.5 bg-[#f0f3ff] p-1 rounded-lg border border-[#cac4d4] w-fit">
+          <div className="flex items-center gap-1.5 bg-[#fdf1f6] p-1 rounded-lg border border-[#cac4d4] w-fit">
             {([
               { id: 'day', label: 'Hoy' },
               { id: 'week', label: 'Esta Semana' },
+              { id: 'quincena', label: 'Quincena' },
               { id: 'month', label: 'Este Mes' }
             ] as { id: PayrollPeriod; label: string }[]).map((opt) => (
               <button
@@ -385,7 +281,7 @@ export const ProductionView: React.FC<ProductionViewProps> = ({
                 onClick={() => setPayrollPeriod(opt.id)}
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
                   payrollPeriod === opt.id
-                    ? 'bg-[#674bb5] text-white shadow-sm'
+                    ? 'bg-[#ca2164] text-white shadow-sm'
                     : 'text-[#494552] hover:bg-white'
                 }`}
               >
@@ -401,7 +297,7 @@ export const ProductionView: React.FC<ProductionViewProps> = ({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[480px]">
+            <table className="w-full text-left border-collapse min-w-[620px]">
               <thead>
                 <tr className="border-b border-[#cac4d4] text-[11px] font-bold uppercase tracking-wider text-[#494552]">
                   <th className="py-2 px-3">ID Operario</th>
@@ -409,22 +305,57 @@ export const ProductionView: React.FC<ProductionViewProps> = ({
                   <th className="py-2 px-3 text-right">Registros</th>
                   <th className="py-2 px-3 text-right">Piezas</th>
                   <th className="py-2 px-3 text-right">Total a Pagar</th>
+                  <th className="py-2 px-3 text-right">Pago / Recibo</th>
                 </tr>
               </thead>
               <tbody className="text-xs divide-y divide-[#cac4d4]/40">
-                {payrollSummary.map((s) => (
-                  <tr key={s.operativeId} className="h-10">
-                    <td className="py-2 px-3 font-mono font-medium text-[#674bb5]">{s.operativeId}</td>
-                    <td className="py-2 px-3 font-medium text-[#151c27]">{s.operativeName}</td>
-                    <td className="py-2 px-3 text-right font-mono text-[#494552]">{s.entries}</td>
-                    <td className="py-2 px-3 text-right font-mono text-[#494552]">
-                      {s.totalQty.toLocaleString('es-CO')}
-                    </td>
-                    <td className="py-2 px-3 text-right font-mono font-bold text-[#006c4b]">
-                      {formatCOP(s.totalPay)}
-                    </td>
-                  </tr>
-                ))}
+                {payrollSummary.map((s) => {
+                  const unpaid = unpaidByOperative.get(s.operativeId);
+                  const alreadyPaid = !unpaid || unpaid.totalPay === 0;
+                  const receipt = justPaid[s.operativeId];
+                  return (
+                    <tr key={s.operativeId} className="h-10">
+                      <td className="py-2 px-3 font-mono font-medium text-[#ca2164]">{s.operativeId}</td>
+                      <td className="py-2 px-3 font-medium text-[#151c27]">{s.operativeName}</td>
+                      <td className="py-2 px-3 text-right font-mono text-[#494552]">{s.entries}</td>
+                      <td className="py-2 px-3 text-right font-mono text-[#494552]">
+                        {s.totalQty.toLocaleString('es-CO')}
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono font-bold text-[#006c4b]">
+                        {formatCOP(s.totalPay)}
+                      </td>
+                      <td className="py-2 px-3 text-right">
+                        {receipt ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handlePrintReceipt(receipt)}
+                              title="Imprimir recibo"
+                              className="w-7 h-7 flex items-center justify-center rounded-md border border-[#cac4d4] text-[#494552] hover:bg-[#fdf1f6] cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">print</span>
+                            </button>
+                            <button
+                              onClick={() => handleSendWhatsApp(receipt)}
+                              title="Enviar recibo por WhatsApp"
+                              className="w-7 h-7 flex items-center justify-center rounded-md bg-[#25D366] text-white hover:bg-[#1ebc59] cursor-pointer"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">chat</span>
+                            </button>
+                          </div>
+                        ) : alreadyPaid ? (
+                          <span className="text-[11px] font-semibold text-[#7a7583]">Ya pagado</span>
+                        ) : (
+                          <button
+                            onClick={() => handlePay(s.operativeId)}
+                            className="text-[11px] font-bold text-white bg-[#ca2164] hover:bg-[#a3144d] px-3 py-1.5 rounded-lg cursor-pointer"
+                          >
+                            Pagar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-[#cac4d4] text-xs font-bold">
@@ -437,9 +368,55 @@ export const ProductionView: React.FC<ProductionViewProps> = ({
                   <td className="py-2 px-3 text-right font-mono text-[#a43073]">
                     {formatCOP(payrollSummary.reduce((sum, s) => sum + s.totalPay, 0))}
                   </td>
+                  <td className="py-2 px-3" />
                 </tr>
               </tfoot>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* Historial de Pagos de Nómina (recibos) */}
+      <div className="bg-white border border-[#cac4d4] rounded-xl p-5 shadow-[0px_4px_12px_rgba(103,75,181,0.04)]">
+        <div className="border-b border-[#cac4d4] pb-3 mb-3">
+          <h2 className="text-lg font-bold text-[#ca2164]">Historial de Pagos</h2>
+          <p className="text-xs text-[#494552] mt-0.5">
+            Cada pago queda guardado aquí para poder reimprimir o reenviar el recibo cuando lo necesites.
+          </p>
+        </div>
+
+        {payrollPayments.length === 0 ? (
+          <p className="text-xs text-[#7a7583] text-center py-6">Todavía no se ha pagado ninguna nómina.</p>
+        ) : (
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {payrollPayments.map((payment) => (
+              <div
+                key={payment.id}
+                className="flex items-center justify-between gap-3 border border-[#cac4d4]/60 rounded-lg px-3.5 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-[#151c27] truncate">{payment.operativeName}</p>
+                  <p className="text-[11px] text-[#7a7583]">{payment.periodLabel}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="font-mono font-bold text-sm text-[#006c4b]">{formatCOP(payment.totalPay)}</span>
+                  <button
+                    onClick={() => handlePrintReceipt(payment)}
+                    title="Imprimir recibo"
+                    className="w-7 h-7 flex items-center justify-center rounded-md border border-[#cac4d4] text-[#494552] hover:bg-[#fdf1f6] cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">print</span>
+                  </button>
+                  <button
+                    onClick={() => handleSendWhatsApp(payment)}
+                    title="Enviar recibo por WhatsApp"
+                    className="w-7 h-7 flex items-center justify-center rounded-md bg-[#25D366] text-white hover:bg-[#1ebc59] cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">chat</span>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -450,6 +427,7 @@ export const ProductionView: React.FC<ProductionViewProps> = ({
         searchQuery={searchQuery}
         onEditGroup={(group) => setRatesModalGroup(group)}
         onAddGroup={handleAddGarmentGroup}
+        hiloItems={hiloItems}
       />
 
       <GarmentRateModal
@@ -462,56 +440,121 @@ export const ProductionView: React.FC<ProductionViewProps> = ({
             ? onDeleteGarmentRateGroup
             : undefined
         }
+        hiloItems={hiloItems}
       />
 
-      {/* Daily Machine History */}
+      {/* Historial de Producción (con histórico acumulado y paginación) */}
       <div className="bg-white border border-[#cac4d4] rounded-xl p-5 shadow-[0px_4px_12px_rgba(103,75,181,0.04)] overflow-hidden">
-        <div className="flex justify-between items-center border-b border-[#cac4d4] pb-3 mb-3">
-          <h2 className="text-lg font-bold text-[#674bb5]">Historial de Producción Diaria</h2>
-          <div className="flex items-center gap-1.5 text-xs text-[#494552] bg-[#f0f3ff] px-2.5 py-1 rounded-md border border-[#cac4d4]">
-            <span className="material-symbols-outlined text-[16px]">calendar_today</span>
-            <span className="font-semibold">Hoy</span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#cac4d4] pb-3 mb-3">
+          <div>
+            <h2 className="text-lg font-bold text-[#ca2164]">Historial de Producción</h2>
+            <p className="text-xs text-[#494552] mt-0.5">
+              Se guarda todo el histórico; usa el período para filtrar y las flechas para pasar de página.
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 bg-[#fdf1f6] p-1 rounded-lg border border-[#cac4d4] w-fit">
+            {([
+              { id: 'day', label: PAYROLL_PERIOD_LABELS.day },
+              { id: 'week', label: PAYROLL_PERIOD_LABELS.week },
+              { id: 'quincena', label: PAYROLL_PERIOD_LABELS.quincena },
+              { id: 'month', label: PAYROLL_PERIOD_LABELS.month },
+              { id: 'all', label: 'Todo' }
+            ] as { id: PayrollPeriod | 'all'; label: string }[]).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setHistoryPeriod(opt.id)}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                  historyPeriod === opt.id
+                    ? 'bg-[#ca2164] text-white shadow-sm'
+                    : 'text-[#494552] hover:bg-white'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[760px]">
-            <thead>
-              <tr className="bg-[#f0f3ff] border-b border-[#cac4d4] text-[11px] font-bold uppercase tracking-wider text-[#494552]">
-                <th className="py-2.5 px-3.5">Hora</th>
-                <th className="py-2.5 px-3.5">ID Máquina</th>
-                <th className="py-2.5 px-3.5">Operario</th>
-                <th className="py-2.5 px-3.5">Prenda</th>
-                <th className="py-2.5 px-3.5">Labor</th>
-                <th className="py-2.5 px-3.5 text-right">Cantidad Lote</th>
-                <th className="py-2.5 px-3.5 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody className="text-xs divide-y divide-[#cac4d4]/40">
-              {filteredHistory.map((item) => (
-                <tr key={item.id} className="hover:bg-[#f0f3ff] transition-colors h-11">
-                  <td className="py-2 px-3.5 font-mono text-[#494552]">{item.time}</td>
-                  <td className="py-2 px-3.5 font-mono font-semibold text-[#151c27]">
-                    {item.machineId}
-                  </td>
-                  <td className="py-2 px-3.5 font-medium text-[#151c27]">{item.operativeName}</td>
-                  <td className="py-2 px-3.5">
-                    <span className="bg-[#fdf2f8] text-[#a43073] border border-[#ffd8e7] px-2 py-0.5 rounded text-[11px] font-semibold">
-                      {item.garmentType}
-                    </span>
-                  </td>
-                  <td className="py-2 px-3.5 text-[#494552]">{item.taskName}</td>
-                  <td className="py-2 px-3.5 text-right font-mono font-bold text-[#151c27]">
-                    {item.batchQty}
-                  </td>
-                  <td className="py-2 px-3.5 text-right font-mono font-bold text-[#006c4b]">
-                    {formatCOP(item.totalPay)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {filteredHistory.length === 0 ? (
+          <p className="text-xs text-[#7a7583] text-center py-8">
+            No hay registros de producción en este período.
+          </p>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[860px]">
+                <thead>
+                  <tr className="bg-[#fdf1f6] border-b border-[#cac4d4] text-[11px] font-bold uppercase tracking-wider text-[#494552]">
+                    <th className="py-2.5 px-3.5">Hora</th>
+                    <th className="py-2.5 px-3.5">ID Máquina</th>
+                    <th className="py-2.5 px-3.5">Operario</th>
+                    <th className="py-2.5 px-3.5">Prenda</th>
+                    <th className="py-2.5 px-3.5">Labor</th>
+                    <th className="py-2.5 px-3.5">Factura</th>
+                    <th className="py-2.5 px-3.5 text-right">Cantidad Lote</th>
+                    <th className="py-2.5 px-3.5 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="text-xs divide-y divide-[#cac4d4]/40">
+                  {paginatedHistory.map((item) => (
+                    <tr key={item.id} className="hover:bg-[#fdf1f6] transition-colors h-11">
+                      <td className="py-2 px-3.5 font-mono text-[#494552]">{item.time}</td>
+                      <td className="py-2 px-3.5 font-mono font-semibold text-[#151c27]">
+                        {item.machineId}
+                      </td>
+                      <td className="py-2 px-3.5 font-medium text-[#151c27]">{item.operativeName}</td>
+                      <td className="py-2 px-3.5">
+                        <span className="bg-[#fdf2f8] text-[#a43073] border border-[#ffd8e7] px-2 py-0.5 rounded text-[11px] font-semibold">
+                          {item.garmentType}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3.5 text-[#494552]">{item.taskName}</td>
+                      <td className="py-2 px-3.5 font-mono text-[#494552]">{item.facturaRef || '—'}</td>
+                      <td className="py-2 px-3.5 text-right font-mono font-bold text-[#151c27]">
+                        {item.batchQty}
+                      </td>
+                      <td className="py-2 px-3.5 text-right font-mono font-bold text-[#006c4b]">
+                        {formatCOP(item.totalPay)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Paginación */}
+            {historyPageCount > 1 && (
+              <div className="flex items-center justify-between gap-3 pt-4 mt-2 border-t border-[#cac4d4]/60">
+                <p className="text-[11px] text-[#7a7583]">
+                  Mostrando {(historyPage - 1) * HISTORY_PAGE_SIZE + 1}–
+                  {Math.min(historyPage * HISTORY_PAGE_SIZE, filteredHistory.length)} de {filteredHistory.length} registros
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                    disabled={historyPage === 1}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#cac4d4] text-[#494552] hover:bg-[#fdf1f6] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                  </button>
+                  <span className="text-xs font-bold text-[#151c27] font-mono">
+                    Página {historyPage} de {historyPageCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryPage((p) => Math.min(historyPageCount, p + 1))}
+                    disabled={historyPage === historyPageCount}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#cac4d4] text-[#494552] hover:bg-[#fdf1f6] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

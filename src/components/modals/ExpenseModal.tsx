@@ -98,11 +98,11 @@ export const ExpenseModal: React.FC<ExpenseModalProps> = ({
           </div>
 
           <div>
-            <label className="text-xs font-bold text-[#494552] block mb-1">Monto ($ USD)</label>
+            <label className="text-xs font-bold text-[#494552] block mb-1">Monto (COP)</label>
             <input
               type="number"
-              step="0.50"
-              min="0.01"
+              step="50"
+              min="1"
               required
               value={amount}
               onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}

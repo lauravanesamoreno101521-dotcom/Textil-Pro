@@ -3,7 +3,7 @@ export type NavView = 'dashboard' | 'inventory' | 'production' | 'facturas' | 'a
 export interface InventoryItem {
   id: string;
   name: string;
-  category: 'Hilos' | 'Agujas' | 'Repuestos' | 'Telas' | 'Accesorios';
+  category: 'Hilos' | 'Agujas' | 'Repuestos';
   currentStock: number;
   unit: string;
   reorderPoint: number;
@@ -23,6 +23,9 @@ export interface Operative {
   ratePerPiece: number;
   totalEarnings: number;
   assignedMachine?: string;
+  // Número de WhatsApp (con indicativo, ej. "573001234567"), opcional. Se
+  // usa para enviar el recibo de pago de nómina directamente por WhatsApp.
+  phone?: string;
 }
 
 export interface ProductionEntry {
@@ -38,6 +41,29 @@ export interface ProductionEntry {
   batchQty: number;
   ratePerPiece: number;
   totalPay: number;
+  // N.º de factura que el operario anotó al registrar (la que llegó o en la
+  // que está trabajando). Opcional y de texto libre — es solo una referencia
+  // para el jefe, no tiene que coincidir exactamente con una Factura cargada.
+  facturaRef?: string;
+  // true una vez este registro ya quedó incluido en un pago de nómina (ver
+  // PayrollPayment). Así "Nómina Pendiente" solo suma lo que falta pagar.
+  paid?: boolean;
+  paymentId?: string;
+}
+
+// Un pago de nómina ya realizado a un operario por un período (día, semana,
+// quincena o mes). Es la base del recibo de pago (imprimir / WhatsApp) y de
+// los avisos de "se acerca pago de nómina" (días 14 y 29 de cada mes).
+export interface PayrollPayment {
+  id: string;
+  operativeId: string;
+  operativeName: string;
+  periodLabel: string; // ej. "Quincena · 1-15 Ago 2026"
+  periodStartISO: string;
+  periodEndISO: string;
+  totalQty: number;
+  totalPay: number;
+  paidDateISO: string;
 }
 
 export interface ExpenseRecord {
@@ -77,6 +103,10 @@ export interface ActivityOrder {
   // Fecha límite de entrega (día 9), calculada automáticamente a partir de
   // entryDateISO al crear el pedido.
   dueDateISO?: string;
+  // N.º de factura real ligado a este pedido (ver Factura más abajo). Se usa
+  // para conciliar cantidades: los operarios anotan este mismo número al
+  // registrar producción en su pantalla de autoservicio.
+  facturaNumero?: string;
 }
 
 export interface NotificationItem {
@@ -95,6 +125,36 @@ export interface TaskRate {
   id: string;
   name: string;
   price: number; // COP por pieza
+
+  // --- Consumo de hilo (ver utils/threadConsumption.ts) ---
+  // Insumo de hilo (InventoryItem.id, categoría "Hilos") que se gasta al
+  // realizar esta labor. Opcional: solo se define en las labores que
+  // realmente usan hilo.
+  hiloItemId?: string;
+  // Gramos de hilo estimados por pieza, ingresados manualmente por el jefe
+  // mientras no haya suficiente histórico real (ver ThreadConsumptionLog).
+  // Una vez haya suficientes registros de consumo real para esta combinación
+  // prenda + labor + hilo, el sistema empieza a mostrar el promedio
+  // calculado en su lugar (sin sobrescribir este valor manual).
+  gramsPerPiece?: number;
+}
+
+// Registro de consumo real de hilo en una tarea ya terminada (se llena
+// pesando el cono/rollo antes y después, o por diferencia de lo que se
+// entregó al operario vs lo que sobró). Es la base del histórico que,
+// una vez tenga suficientes datos, permite calcular automáticamente el
+// promedio de gramos por pieza en vez de depender del valor manual.
+// Este registro es solo informativo/de alerta: nunca descuenta el stock
+// del inventario automáticamente.
+export interface ThreadConsumptionLog {
+  id: string;
+  hiloItemId: string; // InventoryItem.id del hilo
+  garmentType: string; // debe coincidir con GarmentRateGroup.garmentName
+  taskName: string; // debe coincidir con TaskRate.name
+  gramsUsed: number;
+  piecesProduced: number;
+  dateISO: string;
+  note?: string;
 }
 
 // Agrupa todas las labores estandarizadas de un tipo de prenda (ej. "Short
@@ -154,4 +214,34 @@ export interface Factura {
   totalFactura: number | null;
   funciones: FacturaFuncion[];
   asignaciones: FacturaAsignacion[];
+
+  // --- Seguimiento de ciclo de vida (solo para facturas/pedidos nuevos, con
+  // fecha real de ingreso — las 60 facturas históricas importadas del Excel
+  // quedan tal cual, sin estos campos, como registros ya cerrados) ---
+
+  // Fecha en la que llegó el pedido/factura del cliente (YYYY-MM-DD). A
+  // partir de aquí el taller tiene 9 días para entregar.
+  entryDateISO?: string;
+  // Fecha límite de entrega (día 9), calculada desde entryDateISO.
+  dueDateISO?: string;
+  // Estado del pedido, mismo modelo que ActivityOrder para reusar la lógica
+  // de utils/deliveryDeadline.ts.
+  status?: 'In Progress' | 'Delivered' | 'Delayed' | 'Pending';
+  // Fecha real en la que se entregó al cliente (puede ser distinta al día 9
+  // si hubo retraso).
+  actualDeliveryDateISO?: string;
+
+  // --- Cobro al cliente: se paga 10 días después de la entrega real. Si la
+  // entrega se retrasa, el cobro se corre esos mismos días. ---
+  paymentExpectedDateISO?: string;
+  paymentStatus?: 'pendiente' | 'cobrado';
+  paymentReceivedDateISO?: string;
+
+  // --- Conciliación de cantidades vs. lo registrado por los operarios ---
+  // (ver utils/reconciliation.ts). Al día 8/9 se compara `cantidad` (lo que
+  // dice la factura del cliente) contra la suma de lo que cada operario
+  // anotó con este mismo facturaNumero en Producción.
+  reconciled?: boolean;
+  reconciledAt?: string;
+  reconciliationNote?: string;
 }

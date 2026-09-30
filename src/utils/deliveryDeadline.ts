@@ -57,7 +57,7 @@ const NEUTRAL: DeliveryInfo = {
   diasRestantes: null,
   dueDateISO: null,
   label: 'Sin fecha de ingreso',
-  badgeClass: 'bg-[#f0f3ff] text-[#7a7583] border border-[#cac4d4]'
+  badgeClass: 'bg-[#fdf1f6] text-[#7a7583] border border-[#cac4d4]'
 };
 
 interface OrderLike {
@@ -77,7 +77,7 @@ export function getOrderDeliveryInfo(order: OrderLike): DeliveryInfo {
       diasRestantes: null,
       dueDateISO: order.dueDateISO || null,
       label: 'Entregado',
-      badgeClass: 'bg-[#e8ddff] text-[#4f319c] border border-[#cac4d4]'
+      badgeClass: 'bg-[#fcdeea] text-[#a3144d] border border-[#cac4d4]'
     };
   }
 

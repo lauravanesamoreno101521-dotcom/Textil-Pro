@@ -17,24 +17,24 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
 
   const faqs = [
     {
-      q: "¿Cómo corregir las piezas registradas de un operario?",
-      qEn: "How to correct a worker's logged pieces?",
-      a: "Ve a la pestaña Producción, busca la fecha o máquina específica, haz clic en el registro para ajustar la cantidad y guarda los cambios. Si pertenece a semanas anteriores, se requerirá autorización de Administrador.",
+      q: "¿Cómo registra su producción cada operario?",
+      qEn: "How does each worker log their own production?",
+      a: "En el equipo compartido del taller, cada operario elige su nombre de una lista (sin contraseña) y anota el número de factura, la prenda, la labor y la cantidad que hizo. Con eso se calcula sola la nómina por día, semana, quincena y mes — el jefe ya no tiene que pasar puesto por puesto preguntando.",
     },
     {
-      q: "¿Qué sucede cuando el stock llega a cero o nivel crítico?",
-      qEn: "What happens when stock reaches zero?",
-      a: "El sistema resalta el ítem en color rojo con una alerta pulsante y activa una notificación en el panel superior para evitar paradas en las líneas de confección.",
+      q: "¿Qué pasa si un operario sale del taller o se va de vacaciones?",
+      qEn: "What happens if a worker leaves or goes on vacation?",
+      a: "Márcalo como Inactivo desde su ficha en Producción: la tarjeta queda en gris y desaparece de la pantalla de selección del equipo compartido, pero su historial de pagos no se borra. Se reactiva en cualquier momento.",
     },
     {
-      q: "¿Se pueden exportar los datos contables y nómina?",
-      qEn: "Can I export accounting data?",
-      a: "Sí, tanto en la pestaña Producción como en Contabilidad puedes hacer clic en 'Exportar CSV' para descargar un resumen completo en formato compatible con Excel.",
+      q: "¿Cómo se paga la nómina y se envían los recibos?",
+      qEn: "How is payroll paid and receipts sent?",
+      a: "Cada 14 y 29 del mes aparece un aviso en pantalla de que se acerca el pago. Al pagar (por día, semana, quincena o mes) puedes imprimir el recibo o enviarlo por WhatsApp — llega como una foto del recibo, no como texto suelto.",
     },
     {
-      q: "¿Cómo configurar tarifas por prenda (Camisetas, Pantalonetas)?",
-      qEn: "How to customize piece rates per garment?",
-      a: "En el formulario de registro de producción puedes cambiar la tarifa por pieza ($/pza) antes de guardar, o definir valores por defecto en los Ajustes del taller.",
+      q: "¿Cómo funciona la alerta de consumo de hilo?",
+      qEn: "How does the thread consumption alert work?",
+      a: "Es solo una alerta, nunca descuenta el inventario: al enlazar una labor con su hilo y los gramos por pieza (en Tarifas por Labor), el sistema estima cuánto hilo va a llevar cada tarea y avisa si el stock alcanza — porque el hilo sobrante siempre vuelve a bodega.",
     }
   ];
 
@@ -47,43 +47,43 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
       borderColor: "border-[#a43073]",
       numberBg: "bg-[#fdf2f8]",
       numberColor: "text-[#a43073]",
-      desc: "Dirígete al Panel o usa el botón 'Agregar Nuevo Registro' para capturar datos del cliente, lote de prendas, tipo de confección y anticipo.",
+      desc: "Dirígete al Panel o usa el botón 'Agregar Nuevo Registro' para capturar la factura del cliente (Coolkids o Imperium): cantidad, valor y fecha de ingreso. El sistema calcula sola la fecha límite de entrega (9 días) y genera la Prefactura automáticamente.",
       actionLabel: "Crear Nuevo Pedido",
       onClick: () => onOpenNewRecord()
     },
     {
       step: 2,
-      title: "Anotar Piezas por Operario",
+      title: "Cada Operario Registra su Propia Producción",
       icon: "assignment_ind",
-      iconColor: "text-[#674bb5]",
+      iconColor: "text-[#ca2164]",
       borderColor: "border-[#cac4d4]",
       numberBg: "bg-white",
       numberColor: "text-[#494552]",
-      desc: "En la pestaña Producción, selecciona la prenda y la labor realizada por cada operario (ej. Damelis, Argenis). Usa su código OP-ID para registrar el avance diario a destajo.",
+      desc: "En el equipo compartido del taller, cada operario elige su nombre de una lista y anota la factura, la prenda, la labor y la cantidad que hizo. Con eso se calcula sola su nómina — ya no hace falta pasar puesto por puesto preguntando.",
       actionLabel: "Ir a Producción",
       onClick: () => onNavigate('production')
     },
     {
       step: 3,
-      title: "Actualizar Stock",
+      title: "Controlar Hilos, Agujas y Repuestos",
       icon: "inventory_2",
-      iconColor: "text-[#674bb5]",
+      iconColor: "text-[#ca2164]",
       borderColor: "border-[#cac4d4]",
       numberBg: "bg-white",
       numberColor: "text-[#494552]",
-      desc: "Accede a la sección de Inventario para registrar rollos de tela, conos de hilos, agujas industriales y repuestos con sus puntos de reorden.",
+      desc: "Aquí solo se manejan hilos, agujas y repuestos, con sus puntos de reorden. Enlaza cada labor con el hilo que usa (gramos por pieza) en Tarifas por Labor para recibir una alerta de stock al registrar producción.",
       actionLabel: "Ver Inventario",
       onClick: () => onNavigate('inventory')
     },
     {
       step: 4,
-      title: "Pagar Servicios y Liquidar",
+      title: "Pagar Nómina y Conciliar Facturas",
       icon: "payments",
-      iconColor: "text-[#674bb5]",
+      iconColor: "text-[#ca2164]",
       borderColor: "border-[#cac4d4]",
       numberBg: "bg-white",
       numberColor: "text-[#494552]",
-      desc: "Utiliza el módulo de Contabilidad para consolidar las nóminas semanales calculadas automáticamente por piezas y asentar facturas de servicios del taller.",
+      desc: "Paga por día, semana, quincena o mes (aviso automático cada 14 y 29) y envía el recibo impreso o por WhatsApp como foto. En Facturas se concilia lo que el cliente factura contra lo que registraron los operarios.",
       actionLabel: "Ir a Finanzas",
       onClick: () => onNavigate('accounting')
     }
@@ -139,7 +139,7 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
                   </div>
 
                   {/* Step Card Content */}
-                  <div className="flex-1 bg-[#f9f9ff] group-hover:bg-[#f0f3ff] rounded-xl p-4 border border-[#cac4d4] transition-all">
+                  <div className="flex-1 bg-[#fefafb] group-hover:bg-[#fdf1f6] rounded-xl p-4 border border-[#cac4d4] transition-all">
                     <div className="flex items-center justify-between gap-2 mb-1.5">
                       <div className="flex items-center gap-2">
                         <span className={`material-symbols-outlined ${s.iconColor} text-[20px]`}>
@@ -150,7 +150,7 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
 
                       <button
                         onClick={s.onClick}
-                        className="text-[11px] font-bold text-[#674bb5] hover:text-[#a43073] hover:underline cursor-pointer"
+                        className="text-[11px] font-bold text-[#ca2164] hover:text-[#a43073] hover:underline cursor-pointer"
                       >
                         {s.actionLabel} →
                       </button>
@@ -207,17 +207,17 @@ export const HelpCenterView: React.FC<HelpCenterViewProps> = ({
           </div>
 
           {/* Contact Support Card */}
-          <div className="bg-[#e7eefe]/70 rounded-2xl border border-[#cac4d4] p-5 text-center shadow-xs">
+          <div className="bg-[#fde9f1]/70 rounded-2xl border border-[#cac4d4] p-5 text-center shadow-xs">
             <span className="material-symbols-outlined text-4xl text-[#a43073] mb-2 block">
               support_agent
             </span>
             <h4 className="text-base font-bold text-[#151c27] mb-1">¿Aún necesitas ayuda?</h4>
             <p className="text-xs text-[#494552] mb-4 leading-relaxed">
-              Nuestro equipo técnico está disponible durante el horario de taller para asistirte.
+              Escríbele directo a quien administra el taller y le da mantenimiento a este programa.
             </p>
             <button
               onClick={onOpenSupportModal}
-              className="w-full bg-white border border-[#cac4d4] text-[#151c27] font-semibold text-xs py-2.5 px-4 rounded-full hover:bg-[#f0f3ff] hover:border-[#674bb5] hover:text-[#674bb5] active:scale-98 transition-all cursor-pointer shadow-xs"
+              className="w-full bg-white border border-[#cac4d4] text-[#151c27] font-semibold text-xs py-2.5 px-4 rounded-full hover:bg-[#fdf1f6] hover:border-[#ca2164] hover:text-[#ca2164] active:scale-98 transition-all cursor-pointer shadow-xs"
             >
               Contactar Soporte
             </button>

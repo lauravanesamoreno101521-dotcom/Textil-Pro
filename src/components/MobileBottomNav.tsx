@@ -20,7 +20,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 w-full z-40 flex justify-around items-center h-16 px-2 lg:hidden bg-[#f9f9ff] border-t border-[#cac4d4] shadow-lg">
+    <nav className="fixed bottom-0 left-0 w-full z-40 flex justify-around items-center h-16 px-2 lg:hidden bg-[#fefafb] border-t border-[#cac4d4] shadow-lg">
       {items.map((item) => {
         const isActive = currentView === item.id;
         return (
@@ -30,7 +30,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             className={`flex flex-col items-center justify-center p-1 rounded-lg flex-1 min-w-0 transition-all duration-150 cursor-pointer ${
               isActive
                 ? 'text-[#a43073] font-bold scale-105'
-                : 'text-[#494552] hover:text-[#674bb5]'
+                : 'text-[#494552] hover:text-[#ca2164]'
             }`}
           >
             <span

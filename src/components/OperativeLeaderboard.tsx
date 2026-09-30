@@ -59,7 +59,7 @@ export const OperativeLeaderboard: React.FC<OperativeLeaderboardProps> = ({
             RANKING POR PIEZAS
           </p>
         </div>
-        <div className="flex items-center gap-1 bg-[#f0f3ff] p-1 rounded-lg border border-[#cac4d4]">
+        <div className="flex items-center gap-1 bg-[#fdf1f6] p-1 rounded-lg border border-[#cac4d4]">
           {([
             { id: 'historico', label: 'Histórico' },
             { id: 'semana', label: 'Esta Semana' }
@@ -68,7 +68,7 @@ export const OperativeLeaderboard: React.FC<OperativeLeaderboardProps> = ({
               key={opt.id}
               onClick={() => setPeriod(opt.id)}
               className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                period === opt.id ? 'bg-[#674bb5] text-white shadow-sm' : 'text-[#494552] hover:bg-white'
+                period === opt.id ? 'bg-[#ca2164] text-white shadow-sm' : 'text-[#494552] hover:bg-white'
               }`}
             >
               {opt.label}
@@ -97,7 +97,7 @@ export const OperativeLeaderboard: React.FC<OperativeLeaderboardProps> = ({
                 <span className="w-5 text-center text-sm font-bold text-[#494552] shrink-0">
                   {idx < 3 ? MEDALS[idx] : idx + 1}
                 </span>
-                <div className="w-8 h-8 rounded-full overflow-hidden border border-[#cac4d4] shrink-0 bg-[#f0f3ff]">
+                <div className="w-8 h-8 rounded-full overflow-hidden border border-[#cac4d4] shrink-0 bg-[#fdf1f6]">
                   {row.avatar && (
                     <img src={row.avatar} alt={row.name} className="w-full h-full object-cover" />
                   )}
@@ -107,14 +107,14 @@ export const OperativeLeaderboard: React.FC<OperativeLeaderboardProps> = ({
                     <span className="text-xs font-bold text-[#151c27] truncate group-hover:text-[#a43073]">
                       {row.name}
                     </span>
-                    <span className="text-[11px] font-mono font-bold text-[#674bb5] shrink-0">
+                    <span className="text-[11px] font-mono font-bold text-[#ca2164] shrink-0">
                       {row.qty.toLocaleString('es-CO')} pzas
                     </span>
                   </div>
-                  <div className="h-1.5 bg-[#f0f3ff] rounded-full mt-1 overflow-hidden">
+                  <div className="h-1.5 bg-[#fdf1f6] rounded-full mt-1 overflow-hidden">
                     <div
                       style={{ width: `${Math.max(barPct, 3)}%` }}
-                      className="h-full bg-[#674bb5] rounded-full transition-all duration-300"
+                      className="h-full bg-[#ca2164] rounded-full transition-all duration-300"
                     />
                   </div>
                   <span className="text-[10px] text-[#7a7583] mt-0.5 block">{formatCOP(row.totalPay)}</span>

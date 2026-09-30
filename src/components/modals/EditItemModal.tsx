@@ -18,7 +18,7 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
   const [currentStock, setCurrentStock] = useState<number>(0);
   const [reorderPoint, setReorderPoint] = useState<number>(0);
   const [unit, setUnit] = useState('');
-  const [category, setCategory] = useState<'Hilos' | 'Agujas' | 'Repuestos' | 'Telas' | 'Accesorios'>('Hilos');
+  const [category, setCategory] = useState<'Hilos' | 'Agujas' | 'Repuestos'>('Hilos');
 
   useEffect(() => {
     if (item) {
@@ -60,14 +60,14 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="bg-white border border-[#cac4d4] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="bg-[#f0f3ff] p-4 border-b border-[#cac4d4] flex items-center justify-between">
+        <div className="bg-[#fdf1f6] p-4 border-b border-[#cac4d4] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#674bb5]">edit</span>
+            <span className="material-symbols-outlined text-[#ca2164]">edit</span>
             <h3 className="font-bold text-base text-[#151c27]">Editar Stock de Insumo</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-[#7a7583] hover:text-[#151c27] hover:bg-[#e2e8f8] transition-colors cursor-pointer"
+            className="p-1 rounded-lg text-[#7a7583] hover:text-[#151c27] hover:bg-[#fbe0ea] transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
@@ -97,8 +97,6 @@ export const EditItemModal: React.FC<EditItemModalProps> = ({
                 <option value="Hilos">Hilos</option>
                 <option value="Agujas">Agujas</option>
                 <option value="Repuestos">Repuestos</option>
-                <option value="Telas">Telas</option>
-                <option value="Accesorios">Accesorios</option>
               </select>
             </div>
             <div>

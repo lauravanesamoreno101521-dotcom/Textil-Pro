@@ -11,7 +11,7 @@ interface CompanySplitCardProps {
 // (morado) y secundaria (magenta) — se reutilizan aquí como identidad fija
 // de cada empresa cliente, nunca intercambiados.
 const COMPANY_STYLE: Record<CompanyName, { bar: string; text: string; chipBg: string; label: string }> = {
-  COOLKIDS: { bar: 'bg-[#674bb5]', text: 'text-[#674bb5]', chipBg: 'bg-[#ede9fe]', label: 'Coolkids' },
+  COOLKIDS: { bar: 'bg-[#ca2164]', text: 'text-[#ca2164]', chipBg: 'bg-[#fdeaf2]', label: 'Coolkids' },
   IMPERIUM: { bar: 'bg-[#a43073]', text: 'text-[#a43073]', chipBg: 'bg-[#fdf2f8]', label: 'Imperium' }
 };
 
@@ -45,7 +45,7 @@ export const CompanySplitCard: React.FC<CompanySplitCardProps> = ({ facturas, on
         </div>
         <button
           onClick={onNavigate}
-          className="text-xs font-semibold text-[#674bb5] hover:text-[#a43073] hover:underline transition-colors shrink-0"
+          className="text-xs font-semibold text-[#ca2164] hover:text-[#a43073] hover:underline transition-colors shrink-0"
         >
           Ver Facturas
         </button>
@@ -56,7 +56,7 @@ export const CompanySplitCard: React.FC<CompanySplitCardProps> = ({ facturas, on
       ) : (
         <>
           {/* Split proportion bar (por valor facturado) */}
-          <div className="flex w-full h-4 rounded-full overflow-hidden gap-0.5 bg-[#f0f3ff]">
+          <div className="flex w-full h-4 rounded-full overflow-hidden gap-0.5 bg-[#fdf1f6]">
             <div
               style={{ width: `${Math.max(stats.coolkidsPct, 0)}%` }}
               className={`${COMPANY_STYLE.COOLKIDS.bar} transition-all duration-300`}

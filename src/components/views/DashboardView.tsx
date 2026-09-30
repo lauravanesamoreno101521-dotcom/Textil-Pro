@@ -4,20 +4,8 @@ import { getPeriodStartISO, toISODate } from '../../utils/payroll';
 import { addDaysISO, getOrderDeliveryInfo } from '../../utils/deliveryDeadline';
 import { CompanySplitCard } from '../CompanySplitCard';
 import { OperativeLeaderboard } from '../OperativeLeaderboard';
-
-// Redondea hacia arriba a un valor "bonito" (1/2/5 x potencia de 10) para usar
-// como techo del eje Y del gráfico, en vez de un valor fijo.
-function niceAxisMax(value: number): number {
-  if (value <= 0) return 10;
-  const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
-  const residual = value / magnitude;
-  let niceResidual: number;
-  if (residual <= 1) niceResidual = 1;
-  else if (residual <= 2) niceResidual = 2;
-  else if (residual <= 5) niceResidual = 5;
-  else niceResidual = 10;
-  return niceResidual * magnitude;
-}
+import { WeeklyTrendChart } from '../WeeklyTrendChart';
+import { niceAxisMax } from '../../utils/chartMath';
 
 // Escalón de opacidad por rango (mayor a menor) para codificar la magnitud
 // con un solo tono (secuencial), en vez de colores arbitrarios por posición.
@@ -151,7 +139,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     <div className="max-w-7xl mx-auto space-y-6 pb-24 lg:pb-8">
       {/* Page Header */}
       <header className="mb-4">
-        <h2 className="text-3xl font-bold text-[#674bb5] tracking-tight">Resumen</h2>
+        <h2 className="text-3xl font-bold text-[#ca2164] tracking-tight">Resumen</h2>
         <p className="text-sm text-[#494552] mt-1">Métricas del taller de hoy y actividades recientes.</p>
       </header>
 
@@ -166,13 +154,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 INGRESOS VS EGRESOS
               </p>
             </div>
-            <span className="material-symbols-outlined text-[#674bb5] bg-[#f0f3ff] p-2 rounded-lg text-[20px]">
+            <span className="material-symbols-outlined text-[#ca2164] bg-[#fdf1f6] p-2 rounded-lg text-[20px]">
               account_balance_wallet
             </span>
           </div>
 
           <div className="flex items-end gap-2.5 mt-auto">
-            <span className="text-3xl font-bold text-[#674bb5] tracking-tight">
+            <span className="text-3xl font-bold text-[#ca2164] tracking-tight">
               ${monthlyNet.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </span>
             <span className="text-xs font-semibold text-[#ba1a1a] bg-[#ffdad6] px-2 py-0.5 rounded flex items-center mb-1">
@@ -194,22 +182,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 UNIDADES COMPLETADAS
               </p>
             </div>
-            <span className="material-symbols-outlined text-[#674bb5] bg-[#f0f3ff] p-2 rounded-lg text-[20px]">
+            <span className="material-symbols-outlined text-[#ca2164] bg-[#fdf1f6] p-2 rounded-lg text-[20px]">
               precision_manufacturing
             </span>
           </div>
 
           {todayGarmentTotals.length === 0 ? (
-            <div className="mt-auto bg-[#f0f3ff] p-3 rounded-lg border border-[#cac4d4]/40">
+            <div className="mt-auto bg-[#fdf1f6] p-3 rounded-lg border border-[#cac4d4]/40">
               <p className="text-xs font-medium text-[#494552]">Aún no hay registros de producción hoy.</p>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-4 mt-auto">
                 {todayGarmentTotals.slice(0, 2).map((g) => (
-                  <div key={g.garmentType} className="bg-[#f0f3ff] p-3 rounded-lg border border-[#cac4d4]/40">
+                  <div key={g.garmentType} className="bg-[#fdf1f6] p-3 rounded-lg border border-[#cac4d4]/40">
                     <p className="text-xs font-medium text-[#494552] truncate">{g.garmentType}</p>
-                    <p className="text-2xl font-bold text-[#674bb5]">{g.qty.toLocaleString('es-CO')}</p>
+                    <p className="text-2xl font-bold text-[#ca2164]">{g.qty.toLocaleString('es-CO')}</p>
                   </div>
                 ))}
               </div>
@@ -313,6 +301,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         />
       </div>
 
+      {/* Weekly Production Trend */}
+      <div className="mt-6">
+        <WeeklyTrendChart productionHistory={productionHistory} />
+      </div>
+
       {/* Secondary Grid (Chart & Recent Activities) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mt-6">
         {/* Weekly Output by Worker Chart */}
@@ -324,7 +317,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <button
               onClick={() => onNavigate('production')}
-              className="text-xs font-semibold text-[#674bb5] hover:text-[#a43073] hover:underline transition-colors"
+              className="text-xs font-semibold text-[#ca2164] hover:text-[#a43073] hover:underline transition-colors"
             >
               Ver Detalles
             </button>
@@ -372,11 +365,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         {/* Bar Element */}
                         <div
                           style={{ height: `${Math.max(heightPct, 2)}%` }}
-                          className={`w-full rounded-t-md transition-all duration-200 bg-[#674bb5]${opacitySuffix} group-hover:bg-[#674bb5] group-hover:shadow-md`}
+                          className={`w-full rounded-t-md transition-all duration-200 bg-[#ca2164]${opacitySuffix} group-hover:bg-[#ca2164] group-hover:shadow-md`}
                         />
 
                         {/* X Axis Label */}
-                        <span className="text-[11px] font-medium mt-2 text-[#494552] truncate w-full text-center group-hover:text-[#674bb5] group-hover:font-bold">
+                        <span className="text-[11px] font-medium mt-2 text-[#494552] truncate w-full text-center group-hover:text-[#ca2164] group-hover:font-bold">
                           {w.name}
                         </span>
                       </div>
@@ -422,8 +415,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   onClick={() => setFilterStatus(status)}
                   className={`px-2.5 py-1 rounded-md text-xs transition-colors cursor-pointer ${
                     filterStatus === status
-                      ? 'bg-[#674bb5] text-white font-semibold'
-                      : 'text-[#494552] hover:bg-[#f0f3ff]'
+                      ? 'bg-[#ca2164] text-white font-semibold'
+                      : 'text-[#494552] hover:bg-[#fdf1f6]'
                   }`}
                 >
                   {status === 'all' ? 'Todos' : ORDER_STATUS_LABELS[status as ActivityOrder['status']]}
@@ -442,10 +435,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
 
+          {/* Delivery Color Legend */}
+          <div className="px-4 py-2 border-b border-[#cac4d4]/60 bg-[#fefafb] flex flex-wrap items-center gap-x-4 gap-y-1">
+            {[
+              { color: '#006c4b', label: 'A tiempo' },
+              { color: '#9a3412', label: 'Despeluce' },
+              { color: '#92400e', label: 'Empacar hoy' },
+              { color: '#93000a', label: 'Retrasado' },
+              { color: '#a3144d', label: 'Entregado' }
+            ].map((item) => (
+              <span key={item.label} className="flex items-center gap-1.5 text-[10px] text-[#494552]">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                {item.label}
+              </span>
+            ))}
+          </div>
+
           {/* Table Container */}
           <div className="flex-1 overflow-x-auto overflow-y-auto">
             <table className="w-full text-left border-collapse min-w-[680px]">
-              <thead className="bg-[#f0f3ff] sticky top-0 z-10">
+              <thead className="bg-[#fdf1f6] sticky top-0 z-10">
                 <tr className="border-b border-[#cac4d4]">
                   <th className="py-2.5 px-4 text-[11px] font-bold uppercase tracking-wider text-[#494552]">
                     ID Pedido
@@ -478,9 +487,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <tr
                         key={order.id}
                         onClick={() => onSelectOrder && onSelectOrder(order)}
-                        className="hover:bg-[#f0f3ff] transition-colors cursor-pointer group h-12"
+                        className="hover:bg-[#fdf1f6] transition-colors cursor-pointer group h-12"
                       >
-                        <td className="py-2.5 px-4 font-mono font-bold text-[#674bb5] group-hover:underline">
+                        <td className="py-2.5 px-4 font-mono font-bold text-[#ca2164] group-hover:underline">
                           {order.id}
                         </td>
                         <td className="py-2.5 px-4 font-medium text-[#151c27]">{order.client}</td>
@@ -489,12 +498,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
                               order.status === 'In Progress'
-                                ? 'bg-[#dce2f3] text-[#494552]'
+                                ? 'bg-[#f8d8e5] text-[#494552]'
                                 : order.status === 'Delivered'
-                                ? 'bg-[#e8ddff] text-[#4f319c]'
+                                ? 'bg-[#fcdeea] text-[#a3144d]'
                                 : order.status === 'Delayed'
                                 ? 'bg-[#ffdad6] text-[#93000a]'
-                                : 'bg-[#e7eefe] text-[#3c1989]'
+                                : 'bg-[#fde9f1] text-[#820d3c]'
                             }`}
                           >
                             {ORDER_STATUS_LABELS[order.status]}

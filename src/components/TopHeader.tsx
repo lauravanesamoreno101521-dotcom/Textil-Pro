@@ -59,7 +59,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   };
 
   return (
-    <header className="bg-[#f9f9ff] flex justify-between items-center w-full px-4 md:px-10 h-16 sticky top-0 z-30 border-b border-[#cac4d4] shrink-0">
+    <header className="bg-[#fefafb] flex justify-between items-center w-full px-4 md:px-10 h-16 sticky top-0 z-30 border-b border-[#cac4d4] shrink-0">
       {/* Mobile Logo & Title */}
       <div className="flex items-center gap-3 lg:hidden">
         <img
@@ -67,7 +67,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           alt="Logotipo TextilePro"
           className="h-8 w-8 object-contain rounded"
         />
-        <span className="font-bold text-xl text-[#674bb5]">TextilePro</span>
+        <span className="font-bold text-xl text-[#ca2164]">TextilePro</span>
       </div>
 
       {/* Desktop Search Input */}
@@ -80,7 +80,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={getPlaceholderText()}
-          className="w-full pl-10 pr-8 py-2 bg-[#f0f3ff] border border-[#cac4d4] rounded-full text-sm text-[#151c27] placeholder:text-[#7a7583] focus:outline-none focus:border-[#a43073] focus:ring-2 focus:ring-[#a43073]/20 transition-all"
+          className="w-full pl-10 pr-8 py-2 bg-[#fdf1f6] border border-[#cac4d4] rounded-full text-sm text-[#151c27] placeholder:text-[#7a7583] focus:outline-none focus:border-[#a43073] focus:ring-2 focus:ring-[#a43073]/20 transition-all"
         />
         {searchQuery && (
           <button
@@ -98,19 +98,19 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2 text-[#494552] hover:bg-[#e2e8f8] rounded-full transition-colors relative cursor-pointer active:scale-95"
+            className="p-2 text-[#494552] hover:bg-[#fbe0ea] rounded-full transition-colors relative cursor-pointer active:scale-95"
             aria-label="Notificaciones"
           >
             <span className="material-symbols-outlined text-[22px]">notifications</span>
             {unreadCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[#ba1a1a] rounded-full ring-2 ring-[#f9f9ff] animate-pulse" />
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[#ba1a1a] rounded-full ring-2 ring-[#fefafb] animate-pulse" />
             )}
           </button>
 
           {/* Notifications Dropdown Popover */}
           {showNotifications && (
             <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-[#cac4d4] rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
-              <div className="p-3.5 bg-[#f0f3ff] border-b border-[#cac4d4] flex items-center justify-between">
+              <div className="p-3.5 bg-[#fdf1f6] border-b border-[#cac4d4] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-sm text-[#151c27]">Notificaciones</span>
                   {unreadCount > 0 && (
@@ -122,7 +122,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 {unreadCount > 0 && (
                   <button
                     onClick={onClearAllNotifications}
-                    className="text-xs text-[#674bb5] hover:underline font-semibold"
+                    className="text-xs text-[#ca2164] hover:underline font-semibold"
                   >
                     Marcar leídas
                   </button>
@@ -139,8 +139,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                     <div
                       key={notif.id}
                       onClick={() => onMarkNotificationRead(notif.id)}
-                      className={`p-3.5 hover:bg-[#f0f3ff] transition-colors cursor-pointer flex gap-3 items-start ${
-                        !notif.read ? 'bg-[#ede9fe]/30' : ''
+                      className={`p-3.5 hover:bg-[#fdf1f6] transition-colors cursor-pointer flex gap-3 items-start ${
+                        !notif.read ? 'bg-[#fdeaf2]/30' : ''
                       }`}
                     >
                       <span
@@ -149,7 +149,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                             ? 'text-[#ba1a1a]'
                             : notif.type === 'success'
                             ? 'text-[#006c4b]'
-                            : 'text-[#674bb5]'
+                            : 'text-[#ca2164]'
                         }`}
                       >
                         {notif.type === 'alert'
@@ -177,7 +177,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         <div className="relative" ref={settingsRef}>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="p-2 text-[#494552] hover:bg-[#e2e8f8] rounded-full transition-colors active:scale-95 cursor-pointer"
+            className="p-2 text-[#494552] hover:bg-[#fbe0ea] rounded-full transition-colors active:scale-95 cursor-pointer"
             aria-label="Configuración"
           >
             <span className="material-symbols-outlined text-[22px]">settings</span>
@@ -192,11 +192,11 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               <div className="space-y-3 text-xs text-[#494552]">
                 <div className="flex justify-between items-center py-1">
                   <span>Moneda Principal</span>
-                  <span className="font-bold text-[#151c27] bg-[#f0f3ff] px-2 py-0.5 rounded">USD ($)</span>
+                  <span className="font-bold text-[#151c27] bg-[#fdf1f6] px-2 py-0.5 rounded">COP ($)</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
                   <span>Tarifa Estándar Pieza</span>
-                  <span className="font-bold text-[#151c27] bg-[#f0f3ff] px-2 py-0.5 rounded">$1.50 / pza</span>
+                  <span className="font-bold text-[#151c27] bg-[#fdf1f6] px-2 py-0.5 rounded">$ 1.500 / pza</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
                   <span>Turno Activo</span>
@@ -212,7 +212,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       setShowSettings(false);
                       onNavigate('help');
                     }}
-                    className="w-full text-center text-xs text-[#674bb5] font-semibold hover:underline py-1"
+                    className="w-full text-center text-xs text-[#ca2164] font-semibold hover:underline py-1"
                   >
                     Ver Centro de Ayuda
                   </button>
