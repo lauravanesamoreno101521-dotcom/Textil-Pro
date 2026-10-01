@@ -202,13 +202,6 @@ export const OperativeKioskView: React.FC<OperativeKioskViewProps> = ({
                 />
               </div>
 
-              <div className="p-3.5 bg-[#fdeaf2]/50 rounded-lg border border-[#f797bd]/40 flex justify-between items-center">
-                <span className="text-sm text-[#820d3c] font-medium">Vas a ganar por este lote:</span>
-                <span className="font-mono font-bold text-lg text-[#ca2164]">
-                  {formatCOP(quantity * currentRate)}
-                </span>
-              </div>
-
               {threadEstimate && threadAlert && (
                 <div
                   className={`p-3.5 rounded-lg border flex items-start gap-2.5 ${
@@ -274,8 +267,10 @@ export const OperativeKioskView: React.FC<OperativeKioskViewProps> = ({
             {periodStats.map((p) => (
               <div key={p.id} className="border border-[#cac4d4] rounded-lg p-3.5 bg-[#fefafb]">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[#494552]">{p.label}</p>
-                <p className="text-lg font-bold text-[#ca2164] font-mono mt-1">{formatCOP(p.totalPay)}</p>
-                <p className="text-xs text-[#7a7583] mt-0.5">{p.totalQty.toLocaleString('es-CO')} piezas</p>
+                <p className="text-lg font-bold text-[#ca2164] font-mono mt-1">
+                  {p.totalQty.toLocaleString('es-CO')}
+                </p>
+                <p className="text-xs text-[#7a7583] mt-0.5">piezas</p>
               </div>
             ))}
           </div>
